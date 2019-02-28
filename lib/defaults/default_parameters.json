@@ -115,5 +115,6 @@
     },
     "UNFRAGMENTED_PRECURSOR_PAIRS_FILE_NAME": "[OUTPUT_PATH]unfragmented_precursor_pairs.npy",
     "USE_PERCOLATOR": false,
-    "USE_RT_IN_PERCOLATOR": false
+    "USE_RT_IN_PERCOLATOR": false,
+    "VERSION": "docs/version_x.x.x"
 }

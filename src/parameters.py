@@ -51,6 +51,7 @@ def importParameterDictFromJSON(parameter_file_name, save=True):
         __parseMultiprocessingParameters(parameters)
         __parseSamples(parameters)
         __updateDependancies(parameters)
+        __setVersion(parameters)
         if save:
             src.io.saveJSON(
                 parameters,
@@ -185,6 +186,21 @@ def __updateDependancies(parameters):
     if parameters["USE_RT_IN_PERCOLATOR"]:
         parameters["USE_PERCOLATOR"] = True
     return parameters
+
+
+def __setVersion(parameters):
+    current_version = ""
+    for file_name in sorted(os.listdir("docs")):
+        if file_name.startswith("version_"):
+            current_version = file_name
+            break
+    if (
+        parameters["VERSION"] != "docs/version_x.x.x"
+    ) and (
+        parameters["VERSION"] != current_version
+    ):
+        print("WARNING: current version differs from defined version")
+    parameters["VERSION"] = current_version
 
 
 if __name__ == '__main__':
