@@ -21,7 +21,7 @@ sh histopya/install/install.sh
 # sh histopya/install/install.sh /usr/bin/python3.6
 ```
 
-If percolator is not run by calling "percolator", update the file "lib/defaults/default_parameters.json" so line 65 containing "PERCOLATOR_LOCATION" states the full path, e.g.
+Percolator can improve results, but is not essential to be installed. If percolator is installed, but not run by calling "percolator", update the file "lib/defaults/default_parameters.json" so line 65 containing "PERCOLATOR_LOCATION" states the full path, e.g.
 
 ```
 "PERCOLATOR_LOCATION": "/usr/local/bin/percolator",
