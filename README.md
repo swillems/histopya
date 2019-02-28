@@ -30,6 +30,7 @@ Percolator can improve results, but is not essential to be installed. If percola
 To test if the installation was indeed successful, run the following command to fully analyze the test dataset, containing 10 minutes from sample A (65% human, 15% yeast, 20% ecoli), sample B (65% human, 30% yeast, 5% ecoli) and a QC in which both samples are pooled.
 
 ```
+cd histopya
 sh histopya.sh -p data/test/parameters.json
 ```
 
