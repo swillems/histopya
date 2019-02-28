@@ -15,12 +15,10 @@ The original paper providing more detail is available in the docs folder.
 HistoPyA was developed on a Linux Centos 6 distribution, but should work on any Linux flavor with python3.6 installed. A complete installation (including a 100 mb zipped test data set) is done with the following terminal commands, executed from wherever you want to install histopya:
 
 ```
-mkdir histopya
-cd histopya
-git clone TODO
-sh install/install.sh
+git clone https://github.com/swillems/histopya
+sh histopya/install/install.sh
 # In case python3.6 is not run by calling "python3.6", pass the full path as respectively first argument, e.g.:
-# sh install/install.sh /usr/bin/python3.6
+# sh histopya/install/install.sh /usr/bin/python3.6
 ```
 
 If percolator is not run by calling "percolator", update the file "lib/defaults/default_parameters.json" so line 65 containing "PERCOLATOR_LOCATION" states the full path, e.g.
