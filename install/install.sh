@@ -43,11 +43,11 @@ venv/bin/python -m pip install -r install/pip_requirements.txt
 echo "################################################################################"
 # TODO set PX paths to ftp download instead of dropbox
 echo "Unpacking databases"
-wget https://www.dropbox.com/s/mtqcsvs1xkh1zbl/databases.tar.gz?dl=0 install/databases.tar.gz
+wget --output-document install/databases.tar.gz https://www.dropbox.com/s/mtqcsvs1xkh1zbl/databases.tar.gz?dl=0
 tar xzvf install/databases.tar.gz -C lib/databases
 
 echo "Unpacking test data"
-wget https://www.dropbox.com/s/krumlnwg3o6vhld/test_data.tar.gz?dl=0 install/test_data.tar.gz
+wget --output-document install/test_data.tar.gz https://www.dropbox.com/s/krumlnwg3o6vhld/test_data.tar.gz?dl=0
 tar xzvf install/test_data.tar.gz -C data
 
 
