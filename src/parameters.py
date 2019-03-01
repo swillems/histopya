@@ -36,6 +36,9 @@ def importParameterDictFromJSON(parameter_file_name, save=True):
     ''' Returns a dictionary with all auto-parsed and
         default-completed parameters from a JSON file'''
     try:
+        print("*" * 12)
+        print("* HistoPyA *")
+        print("*" * 12)
         parameters = src.io.loadJSON(
             DEFAULT_PARAMETERS_FILE_NAME,
             parameters=None
@@ -44,7 +47,6 @@ def importParameterDictFromJSON(parameter_file_name, save=True):
             parameter_file_name,
             parameters=None
         )
-        # TODO parameters["VERSION"] = docs/version_x.x.x
         parameters.update(user_defined_parameters)
         __autoCompleteAllParameters(parameters)
         __createPaths(parameters)
@@ -63,9 +65,6 @@ def importParameterDictFromJSON(parameter_file_name, save=True):
         print("ERROR: Parameters could not be imported.")
         print("       HistoPyA was aborted!")
         sys.exit(0)
-    print("*" * 12)
-    print("* HistoPyA *")
-    print("*" * 12)
     return parameters
 
 
