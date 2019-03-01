@@ -42,7 +42,7 @@
         "C": 57.021464
     },
     "FILTER_PRECURSOR_EXISTENCE_IN_LE": true,
-    "FULL_PARAMETERS_FILE_NAME": "[OUTPUT_PATH]full_parameters.json",
+    "FULL_PARAMETERS_FILE_NAME": "[OUTPUT_PATH]parameters.json",
     "HE_DT_SHIFT": 0,
     "HE_ONLY": false,
     "IDENTIFICATION_PPM": 20,

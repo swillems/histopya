@@ -9,8 +9,8 @@ echo "##########################################################################
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 cd $DIR
 cd ..
-mkdir data
 mkdir lib/databases
+mkdir data
 echo "Setting directory to" $(pwd)
 
 if [ -z $PYTHON_COMMAND ] ; then
@@ -39,6 +39,7 @@ echo "Unpacking databases"
 wget --output-document install/databases.tar.gz https://www.dropbox.com/s/mtqcsvs1xkh1zbl/databases.tar.gz?dl=0
 tar xzvf install/databases.tar.gz -C lib/databases
 
+# TODO set download paths to proteomeXchange instead of dropbox
 echo "Unpacking test data"
 wget --output-document install/test_data.tar.gz https://www.dropbox.com/s/krumlnwg3o6vhld/test_data.tar.gz?dl=0
 tar xzvf install/test_data.tar.gz -C data
