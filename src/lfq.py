@@ -134,6 +134,46 @@ annotation_data = src.aggregates.writePercolatorFile(
 
 
 
+#
+#
+#
+#
+# for xx,yy, c, ca, cb in islice(zip(x, y, r, ra, rb),None,None,1000):
+#     aa = a[xx]
+#     bb = a[yy]
+#     mza = anchors[aa]["MZ"]
+#     mzb = anchors[bb]["MZ"]
+#     ia = i[xx]
+#     ib = i[yy]
+#     tmp = plt.scatter(
+#         ia,
+#         ib,
+#         c=np.arange(10)%2
+#     )
+#     tmp = plt.title("{}\n{}\n{}\n{}\n{}".format(mza, mzb, c, ca, cb))
+#     plt.show()
+#
+#
+# def cc(a, b):
+#     a_avgs = np.average(a, axis=1)
+#     b_avgs = np.average(b, axis=1)
+#     a_diffs = a - a_avgs.reshape(-1, 1)
+#     b_diffs = b - b_avgs.reshape(-1, 1)
+#     denom = np.sum(a_diffs * b_diffs, axis=1)
+#     enuma = np.sqrt(np.sum(a_diffs * a_diffs, axis=1))
+#     enumb = np.sqrt(np.sum(b_diffs * b_diffs, axis=1))
+#     r = denom / (enuma * enumb)
+#     return r
+#
+#
+
+
+
+# plt.plot(*np.unique(np.round(scipy.stats.variation(ii[:,::],axis=1),3), return_counts=True), marker=".",c="b")
+
+
+
+
 
 
 
@@ -152,8 +192,8 @@ conditions = {
 #     "QC": 2
 # }
 # conditions = {
-#     "A": slice(0, 10, 2),
-#     "B": slice(1, 10, 2),
+#     "A": slice(0, None, 2),
+#     "B": slice(1, None, 2),
 # }
 anchors_per_condition = {}
 anchor_ions_per_condition = {}
@@ -190,6 +230,11 @@ for condition, condition_slice in conditions.items():
     anchors_per_condition[condition] = condition_anchors
     anchor_ions_per_condition[condition] = condition_anchor_ions
 
+
+
+anchors_per_condition["QC"] = {
+    "INTENSITY": anchors_per_condition["A"]["INTENSITY"] + anchors_per_condition["B"]["INTENSITY"]
+}
 
 
 
@@ -2370,8 +2415,8 @@ plt.show(plt.scatter(anchor_dts[x], dt_diffs[x], c=dt_diffs[x], cmap="RdYlGn", m
 
 
 
-annotation_array = np.array(annotation_data)
-# annotation_array = np.array(annotation_data[:120000])
+# annotation_array = np.array(annotation_data)
+annotation_array = np.array(annotation_data[:200000])
 fps = np.cumsum(annotation_array[:, 1].astype(int)!=1)
 fdr = fps / np.arange(1, annotation_array.shape[0] + 1)
 
@@ -2394,10 +2439,10 @@ predicted_organism = np.array(
 )
 color_palette = np.array(["red", "blue", "green", "black"])
 color = np.array([np.flatnonzero(organism_map == i)[0] if i in organism_map else 3 for i in organisms])
-for c in np.unique(color)[2:3]:
+for c in np.unique(color):
     organism = organism_map[c]
-    # if organism == "UNKNOWN":
-    #     continue
+    if organism == "UNKNOWN":
+        continue
     elements = color == c
     tmp = plt.scatter(
         np.log2(qc_intensity[elements]),
@@ -2429,10 +2474,9 @@ plt.show()
 
 
 
-
-
-
-
+# qc_intensity = anchors_per_condition["A"]["INTENSITY"] + anchors_per_condition["B"]["INTENSITY"]
+# qc_intensity = qc_intensity[ans]
+# organism_logfcs = logfcs[ans]
 order = np.argsort(-qc_intensity)
 avgs = [-2, 0, 1]
 counts = [0, 0, 0]
@@ -2453,6 +2497,133 @@ for i in order:
         clusters[i] = 0
         avgs[2] = (avgs[2] * counts[2] + logfc) / (counts[2] + 1)
         counts[2] += 1
+
+
+
+
+
+
+
+mzd = anchors["MZ"][a] - anchors["MZ"][b]
+mzd_0 = mzd[(clusters[aa] == clusters[bb]) & (clusters[aa] == 0)]
+mzd_2 = mzd[(clusters[aa] == clusters[bb]) & (clusters[aa] == 2)]
+
+margin = 0.001
+ppm_margin = 5
+
+
+mzd_ecoli = np.sort(mzd_0[mzd_0 > 0])
+mzd_yeast = np.sort(mzd_2[mzd_2 > 0])
+
+mzd_all = np.unique(np.concatenate([mzd_ecoli, mzd_yeast]))
+
+# ecoli_left = np.searchsorted(mzd_ecoli - margin, mzd_all, "left")
+# ecoli_right = np.searchsorted(mzd_ecoli + margin, mzd_all, "right")
+# yeast_left = np.searchsorted(mzd_yeast - margin, mzd_all, "left")
+# yeast_right = np.searchsorted(mzd_yeast + margin, mzd_all, "right")
+
+ecoli_left = np.searchsorted(mzd_ecoli * (1 - ppm_margin/1000000), mzd_all, "left")
+ecoli_right = np.searchsorted(mzd_ecoli * (1 + ppm_margin/1000000), mzd_all, "right")
+yeast_left = np.searchsorted(mzd_yeast * (1 - ppm_margin/1000000), mzd_all, "left")
+yeast_right = np.searchsorted(mzd_yeast * (1 + ppm_margin/1000000), mzd_all, "right")
+
+ecoli_count = ecoli_left - ecoli_right
+yeast_count = yeast_left - yeast_right
+
+ecoli_relative = ecoli_count/len(mzd_ecoli)
+yeast_relative = yeast_count/len(mzd_yeast)
+
+ratio = np.log2(ecoli_relative / yeast_relative)
+selection = np.flatnonzero(~np.isinf(ratio))
+
+import matplotlib as mpl
+import matplotlib.cm as cm
+
+norm = mpl.colors.Normalize(vmin=np.min(ratio[selection]), vmax=np.max(ratio[selection]))
+m = cm.ScalarMappable(norm=norm, cmap="RdYlGn")
+
+# plt.scatter(mzd_all[selection], ecoli_relative[selection], marker=".", c=m.to_rgba(ratio[selection]))
+plt.plot(mzd_all, ecoli_relative)
+plt.plot(mzd_all, -yeast_relative)
+# plt.scatter(
+#     mzd_all[c],
+#     np.zeros(len(c)),
+#     c=np.log2(ecoli_count[c] + yeast_count[c]),
+#     cmap="RdYlGn"
+# )
+plt.show()
+
+# min_count = 1 / 100000
+# c = ecoli_relative > min_count
+# c |= yeast_relative > min_count
+min_count = 100
+c = ecoli_count > min_count
+c |= yeast_count > min_count
+c = np.flatnonzero(c)
+# c = c[np.argsort(np.log2(ecoli_count[c] + yeast_count[c]))]
+# plt.show(
+#     plt.scatter(
+#         mzd_all[c],
+#         np.log2(
+#             (
+#                 ecoli_count[c] / np.sum(ecoli_count[c])
+#             ) / (
+#                 yeast_count[c] / np.sum(yeast_count[c])
+#             )
+#         ),
+#         c=np.log2(ecoli_count[c] + yeast_count[c]),
+#         cmap="RdYlGn"
+#     )
+# )
+c = c[
+    np.argsort(
+        np.log2(
+            (
+                ecoli_count[c] / np.sum(ecoli_count[c])
+            ) / (
+                yeast_count[c] / np.sum(yeast_count[c])
+            )
+        )
+    )
+]
+plt.show(
+    plt.scatter(
+        mzd_all[c],
+        np.log2(ecoli_count[c] + yeast_count[c]),
+        c=np.log2(
+            (
+                ecoli_count[c] / np.sum(ecoli_count[c])
+            ) / (
+                yeast_count[c] / np.sum(yeast_count[c])
+            )
+        ),
+        cmap="RdYlGn"
+    )
+)
+
+
+aas = src.io.loadJSON("AMINO_ACID_FILE_NAME", parameters)
+aa_keys, aa_vals = list(zip(*aas.items()))
+aa_mzs = np.array(aa_vals)
+aa_indices = np.searchsorted(mzd_all, aa_mzs)
+ecoli_aa = ecoli_count[aa_indices]
+yeast_aa = yeast_count[aa_indices]
+
+plt.bar(aa_vals, ecoli_aa / np.sum(ecoli_aa))
+plt.bar(aa_vals, -yeast_aa / np.sum(yeast_aa))
+plt.xticks(aa_vals, aa_keys)
+plt.show()
+
+plt.scatter(aa_vals, np.log2((ecoli_aa / np.sum(ecoli_aa)) / (yeast_aa / np.sum(yeast_aa))))
+
+
+
+
+
+
+
+
+
 
 
 x = color != 3

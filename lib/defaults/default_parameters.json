@@ -67,6 +67,7 @@
     "PERCOLATOR_PATH": "[OUTPUT_PATH]percolator/",
     "PERCOLATOR_TARGET_PEPTIDES": "[PERCOLATOR_PATH]target_peptides.csv",
     "PERCOLATOR_TARGET_PIMS": "[PERCOLATOR_PATH]target_pims.csv",
+    "PERCOLATOR_TARGET_PROTEINS": "[PERCOLATOR_PATH]target_proteins.csv",
     "PLOTS_PATH": "[OUTPUT_PATH]plots/",
     "PLOT_HEIGHT": 1080,
     "PLOT_WIDTH": 1920,

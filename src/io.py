@@ -112,8 +112,13 @@ def runPercolator(parameters, log=None):
         "--results-psms", parameters["PERCOLATOR_TARGET_PIMS"],
         "--results-peptides", parameters["PERCOLATOR_TARGET_PEPTIDES"],
         "--decoy-results-psms", parameters["PERCOLATOR_DECOY_PIMS"],
-        "-x",
-        "-Y",
+        "--results-proteins", parameters["PERCOLATOR_TARGET_PROTEINS"],
+        "-I", "concatenated",
+        "-A",
+        # "-V", "score", # Can become negative if mod_score is also included!
+        "-P",
+        "DECOY_",
+        "-x"
     ]
     if parameters["USE_RT_IN_PERCOLATOR"]:
         percolator_params += [
