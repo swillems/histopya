@@ -267,7 +267,7 @@ def __defineUniquePeptides(
             ("DECOY", np.bool),
             ("PEPTIDOFORMS", np.int),
             ("OCCURENCES", np.int),
-            ("PROTEIN", np.int)
+            ("PROTEIN", np.int),
         ]
     )
     peptides["SIZE"] = [len(l) for l in unique_peptides]
@@ -552,6 +552,21 @@ def __calculateYMRs(
         masses[np.cumsum(peptides["SIZE"][:-1])] = terminal_index
         masses[0] = terminal_index
     return masses
+
+
+def getSequenceFromIndex(
+    peptide_index,
+    peptides,
+    peptide_index_matrix,
+    total_protein_sequence
+):
+    peptide_start_index = peptide_index_matrix.indices[
+        peptide_index_matrix.indptr[peptide_index]
+    ]
+    peptide_sequence = total_protein_sequence[
+        peptide_start_index: peptide_start_index + peptides[peptide_index]["SIZE"]
+    ]
+    return peptide_sequence
 
 
 if __name__ == '__main__':

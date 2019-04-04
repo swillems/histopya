@@ -13,7 +13,7 @@ def defineFromIons(ions, parameters, log, save=True, remove_noise=True):
     '''TODO COMMENT'''
     with log.newSection("Defining aggregate ions"):
         signal_count_threshold = parameters["SIGNAL_COUNT_THRESHOLD"]
-        anchor_ions = __matchIonsToAnchors(ions, signal_count_threshold, log)
+        anchor_ions = __matchIonsToAnchors(ions, signal_count_threshold, parameters, log)
         anchors = __defineAnchorProperties(anchor_ions, ions, log)
         anchors, anchor_ions, ions = __reorderAnchorsAndIons(
             anchors,
@@ -34,7 +34,7 @@ def defineFromIons(ions, parameters, log, save=True, remove_noise=True):
     return anchors, anchor_ions, ions
 
 
-def __matchIonsToAnchors(ions, signal_count_threshold, log):
+def __matchIonsToAnchors(ions, signal_count_threshold, parameters, log):
     log.printMessage("Matching ions to aggregate ions")
     anchor_ions = scipy.sparse.csr_matrix(
         (
@@ -50,7 +50,12 @@ def __matchIonsToAnchors(ions, signal_count_threshold, log):
         anchor_ions = anchor_ions[
             anchor_sizes >= signal_count_threshold
         ]
-        log.printMessage("Retained {} aggregate ions".format(anchor_ions.shape[0]))
+        log.printMessage(
+            "Retained {} aggregate ions of which {} are fully reproducible".format(
+                anchor_ions.shape[0],
+                np.sum(anchor_sizes == parameters["SAMPLE_COUNT"])
+            )
+        )
     return anchor_ions
 
 

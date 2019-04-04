@@ -25,6 +25,7 @@
     },
     "APEX_FILE_NAMES": "[BASE_PATH]apex",
     "ATOM_FILE_NAME": "lib/defaults/default_atoms.json",
+    "AUTOCALIBRATE_ION_ALIGNMENT_PARAMETERS": true,
     "BASE_PATH": null,
     "CALIBRATED_IONS_FILE_NAME": "[OUTPUT_PATH]calibrated_ions.npy",
     "CPU_COUNT": -1,

@@ -17,10 +17,10 @@ HistoPyA was developed on a Linux Centos 6 distribution, but should work on any 
 ```
 git clone https://github.com/swillems/histopya
 cd histopya
-sh install/install.sh
+bash install/install.sh
 # In case python3.6 is not run by calling "python3.6",
 # pass the full path as argument, e.g.:
-# sh install/install.sh /usr/bin/python3.6
+# bash install/install.sh /usr/bin/python3.6
 ```
 
 Percolator can improve results, but is not essential to run histopya. If percolator is installed, but not run by calling "percolator", update the file "lib/defaults/default_parameters.json" so line 65 containing "PERCOLATOR_LOCATION" states the full path, e.g.
@@ -32,7 +32,7 @@ Percolator can improve results, but is not essential to run histopya. If percola
 To test if the installation was indeed successful, run the following command to fully analyze the test dataset, containing 10 minutes from sample A (65% human, 15% yeast, 20% ecoli), sample B (65% human, 30% yeast, 5% ecoli) and a QC in which both samples are pooled.
 
 ```
-sh run_histopya.sh -p data/test/parameters.json
+bash run_histopya.sh -p data/test/parameters.json
 ```
 
 ## Usage
@@ -52,7 +52,7 @@ It is suggested to create a single folder per project within HistoPyA's data fol
 A *.json parameter file containing just the path to this project folder and the *.json databases to use, suffices to perform a default analysis and place all results in a separate folder within the project folder with the following command:
 
 ```
-sh run_histopya.sh -p data/test/parameters.json
+bash run_histopya.sh -p data/test/parameters.json
 ```
 
 All parameters available in "libs/defaults/default_parameters.json" can be overridden by a user-defined parameter file.

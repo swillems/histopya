@@ -373,12 +373,18 @@ def estimateAlignmentParameters(
     save=True
 ):
     '''TODO comment'''
+    if not parameters["AUTOCALIBRATE_ION_ALIGNMENT_PARAMETERS"]:
+        ion_alignment_parameters = src.io.loadJSON(
+            "ION_ALIGNMENT_PARAMETERS_FILE_NAME",
+            parameters,
+        )
+        return ion_alignment_parameters
     with log.newSection("Estimating alignment parameters"):
         percentile_limit = int(
             50 + 50 * parameters["ION_ALIGNMENT_PERCENTILE_THRESHOLD"]
         )
         deviation_factor = parameters["ION_ALIGNMENT_DEVIATION_FACTOR"]
-        alignment_parameters = {}
+        ion_alignment_parameters = {}
         for attribute in [
             "CALIBRATED_MZ",
             "CALIBRATED_DT",
@@ -388,7 +394,7 @@ def estimateAlignmentParameters(
             if attribute in parameters["RELATIVE_ATTRIBUTES"]:
                 ptps *= 1000000 / np.min(estimation_anchors[attribute], axis=1)
             ptp_limit = np.percentile(ptps, percentile_limit) * deviation_factor
-            alignment_parameters[attribute] = ptp_limit
+            ion_alignment_parameters[attribute] = ptp_limit
             log.printMessage(
                 "Estimated maximum distance for {} is {}".format(
                     attribute,
@@ -397,12 +403,12 @@ def estimateAlignmentParameters(
             )
         if save:
             src.io.saveJSON(
-                alignment_parameters,
+                ion_alignment_parameters,
                 "ION_ALIGNMENT_PARAMETERS_FILE_NAME",
                 parameters,
                 log
             )
-    return alignment_parameters
+    return ion_alignment_parameters
 
 
 def sort(ions, attribute, log):

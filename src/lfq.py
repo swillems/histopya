@@ -21,6 +21,7 @@ from collections import defaultdict
 import seaborn as sns
 from matplotlib import pyplot as plt
 from sklearn import linear_model
+import sklearn
 import csv
 # import importlib
 # importlib.reload(src.aggregates)
@@ -194,6 +195,10 @@ conditions = {
 # conditions = {
 #     "A": slice(0, None, 2),
 #     "B": slice(1, None, 2),
+# }
+# conditions = {
+#     "A": [0,1,4,5],
+#     "B": [2,3,6,7],
 # }
 anchors_per_condition = {}
 anchor_ions_per_condition = {}
@@ -2632,7 +2637,7 @@ x &= ~np.isinf(organism_logfcs)
 np.sum(color[x] != clusters[x]) / np.sum(color[x] == clusters[x])
 
 ax = plt.subplots(1, 4)[1]
-ax[3].scatter(np.log2(qc_intensity), organism_logfcs, c=clusters, marker=".")
+ax[3].scatter(np.log2(qc_intensity), organism_logfcs, c=clusters, marker=".", s=1)
 for i, c in enumerate(np.unique(color)):
     organism = organism_map[c]
     if organism == "UNKNOWN":
@@ -2643,6 +2648,7 @@ for i, c in enumerate(np.unique(color)):
         marker=".",
         c="grey",
         label=organism,
+        s=1
         # s=scores
     )
     elements = color == c
@@ -2666,6 +2672,7 @@ for i, c in enumerate(np.unique(color)):
         # c=outliers,
         label=organism,
         cmap="RdYlGn",
+        s=1
         # s=local_scores
     )
     # ax[i].xlabel("Log(QC))")
@@ -3109,3 +3116,231 @@ for total in range(1, sample_count + 1):
     minimum_hits.append(max(select, minimum_overlap))
 
 for i in enumerate(minimum_hits): i
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+percolated_annotations = pd.read_csv(parameters["PERCOLATOR_TARGET_PIMS"], delimiter="\t")
+percolated_annotations_fdrs = percolated_annotations.values[:, 2]
+significant_pims = percolated_annotations.values[
+    percolated_annotations_fdrs < 0.01,
+    0
+].astype(int)
+anchs, peps = anchor_peptide_match_counts.nonzero()
+significant_anchors = anchs[significant_pims]
+significant_peptides = peps[significant_pims]
+
+
+
+
+def includeBackground(selection):
+    plt.scatter(
+        anchors["RT"][selection],
+        anchors["DT"][selection],
+        c="lightgrey",
+        marker="."
+    )
+
+
+def includeMiddleground(selection):
+    plt.scatter(
+        anchors["RT"][selection],
+        anchors["DT"][selection],
+        c="grey",
+    )
+
+
+def includeForeground(selection):
+    plt.scatter(
+        anchors["RT"][significant_anchors[selection]],
+        anchors["DT"][significant_anchors[selection]],
+        c=significant_peptides[selection],
+        cmap="tab10",
+        marker="."
+    )
+
+
+
+def getCurrentBackground(background_selection):
+    dt_low, dt_high = plt.ylim()
+    rt_low, rt_high = plt.xlim()
+    a = anchors["DT"] <= dt_high
+    a &= anchors["DT"] >= dt_low
+    a &= anchors["RT"] <= rt_high
+    a &= anchors["RT"] >= rt_low
+    return np.flatnonzero(a & background_selection)
+
+
+def includeNetwork(selection):
+    n = neighbors[selection].T.tocsr()[selection]
+    a, b = n.nonzero()
+    c = a < b
+    overlap = n.data[c]
+    order = np.argsort(overlap)
+    a = selection[a[c]][order]
+    b = selection[b[c]][order]
+    overlap = overlap[order]
+    start_edges = list(zip(anchors["RT"][a], anchors["DT"][a]))
+    end_edges = list(zip(anchors["RT"][b], anchors["DT"][b]))
+    norm = mpl.colors.Normalize(vmin=parameters["MINIMUM_OVERLAP"][0], vmax=parameters["SAMPLE_COUNT"])
+    m = cm.ScalarMappable(norm=norm, cmap="RdYlGn")
+    clrs = m.to_rgba(overlap)
+    # clrs = "lightgrey"
+    lc = mc.LineCollection(list(zip(start_edges, end_edges)), colors=clrs)
+    plt.axes().add_collection(lc)
+    # includeBackground(selection)
+    # includeForeground(selection)
+
+
+background_selection = anchors["ION_COUNT"] == parameters["SAMPLE_COUNT"]
+foreground_selection = anchors["ION_COUNT"][significant_anchors] == parameters["SAMPLE_COUNT"]
+
+# middleground_selection = b[isotopes][anchors["ION_COUNT"][b[isotopes]] == parameters["SAMPLE_COUNT"]]
+
+import matplotlib as mpl
+import matplotlib.cm as cm
+from matplotlib import collections  as mc
+tmp = plt.axes()
+plt.ion()
+includeBackground(background_selection)
+# includeMiddleground(middleground_selection)
+includeForeground(foreground_selection)
+selection = getCurrentBackground(background_selection)
+includeNetwork(selection)
+
+
+#
+#
+#
+# from matplotlib import collections  as mc
+#
+# lines = [[(0, 1), (1, 1)], [(2, 3), (3, 3)], [(1, 2), (1, 3)]]
+# c = np.array([(1, 0, 0, 1), (0, 1, 0, 1), (0, 0, 1, 1)])
+#
+# lc = mc.LineCollection(lines, colors=c, linewidths=2)
+# plt.axes.add_collection(lc)
+#
+
+
+
+
+
+
+
+
+
+a = significant_anchors[1000]
+n = neighbors[a].indices
+hits = significant_peptides[np.isin(significant_anchors, n)]
+ans = n[np.isin(n, significant_anchors)]
+
+
+n = neighbors[significant_anchors].T.tocsr()[significant_anchors]
+a, b = n.nonzero()
+
+
+mismatch = significant_peptides[a] != significant_peptides[b]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ai = anchor_ions.copy()
+ai.data = ions["CALIBRATED_INTENSITY"][ai.data]
+d = {}
+for i in range(0, 1000, 50):
+    l = np.sum(ai > i, axis=1).A.flatten()
+    d[i] = np.unique(l, return_counts=True)
+
+z = []
+for i, j in d.items():
+    k = np.zeros(9)
+    k[j[0]] = j[1]
+    z.append(k)
+
+z=np.stack(z)
+
+plt.show([plt.plot(i) for i in z])
+
+
+
+
+
+n = neighbors[significant_anchors].T.tocsr()[significant_anchors]
+a,b = n.nonzero()
+
+p1 = significant_peptides[a]
+p2 = significant_peptides[b]
+
+s = np.abs(peptide_masses[p1]-peptide_masses[p2]) < 1
+s &= np.abs(peptide_masses[p1]-peptide_masses[p2]) > 0
+
+aa = anchors[significant_anchors[a[s]]]
+
+
+
+
+
+
+
+n = neighbors[significant_anchors]
+a, b = n.nonzero()
+
+mzd = anchors["MZ"][b] - anchors["MZ"][significant_anchors[a]]
+
+
+isotopes = np.abs(mzd - base_mass_dict["atoms"]["H+"]) < 0.01
+isotopes |= np.abs(mzd - 2 * base_mass_dict["atoms"]["H+"]) < 0.01
+isotopes |= np.abs(mzd - 3 * base_mass_dict["atoms"]["H+"]) < 0.01
+
+
+
+for i in range(1, 100):
+    l=significant_peptides==a[-i]
+    ai=anchor_ions[significant_anchors[l]]
+    ai.data = ions["CALIBRATED_INTENSITY"][ai.data]
+    z=ai[np.diff(ai.indptr)==10]
+    zz=z.todense().A
+    plt.show(plt.plot(zz.T))
