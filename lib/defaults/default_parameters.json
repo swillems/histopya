@@ -23,9 +23,12 @@
         "MZ": 2,
         "RT": 4
     },
+    "APEX_DELIMITER": ",",
     "APEX_FILE_NAMES": "[BASE_PATH]apex",
     "ATOM_FILE_NAME": "lib/defaults/default_atoms.json",
-    "AUTOCALIBRATE_ION_ALIGNMENT_PARAMETERS": true,
+    "AUTO_CALIBRATE_ION_ALIGNMENT_PARAMETERS": true,
+    "AUTO_ESTIMATE_ION_ALIGNMENT_PARAMETERS": true,
+    "AUTO_ESTIMATE_ANCHOR_ALIGNMENT_PARAMETERS": true,
     "BASE_PATH": null,
     "CALIBRATED_IONS_FILE_NAME": "[OUTPUT_PATH]calibrated_ions.npy",
     "CPU_COUNT": -1,
@@ -45,7 +48,7 @@
     "FILTER_PRECURSOR_EXISTENCE_IN_LE": true,
     "FULL_PARAMETERS_FILE_NAME": "[OUTPUT_PATH]parameters.json",
     "HE_DT_SHIFT": 0,
-    "HE_ONLY": false,
+    "HE_ONLY": true,
     "IDENTIFICATION_PPM": 20,
     "ION_ALIGNMENT_PARAMETERS_FILE_NAME": "[OUTPUT_PATH]ion_alignment_parameters.json",
     "ION_ALIGNMENT_PERCENTILE_THRESHOLD": 0.68,
@@ -74,6 +77,7 @@
     "PLOT_WIDTH": 1920,
     "PROTON_MASS": 1.007276,
     "PSEUDO_AGGREGATE_IONS_FILE_NAME": "[OUTPUT_PATH]pseudo_aggregate_ions.npy",
+    "PSEUDO_ION_MOBILITY": false,
     "PSEUDO_ISOTOPIC_PAIRS_FILE_NAME": "[OUTPUT_PATH]pseudo_isotopic_pairs.npy",
     "PTMS_FILE_NAME": "lib/defaults/default_ptms.json",
     "QUICK_ANCHOR_DISTRIBUTION_PLOTS": {
@@ -106,7 +110,7 @@
         "CALIBRATED_DT"
     ],
     "REORDERED_IONS_FILE_NAME": "[OUTPUT_PATH]reordered_ions.npy",
-    "REQUIRE_PHYSICAL_PRECURSOR": true,
+    "REQUIRE_PHYSICAL_PRECURSOR": false,
     "SAMPLE_COUNT": null,
     "SIGNAL_COUNT_THRESHOLD": 2,
     "SPECTRA_FILE_NAME": "[OUTPUT_PATH]spectra.npy",
@@ -116,7 +120,7 @@
         "C": null
     },
     "UNFRAGMENTED_PRECURSOR_PAIRS_FILE_NAME": "[OUTPUT_PATH]unfragmented_precursor_pairs.npy",
-    "USE_PERCOLATOR": false,
+    "USE_PERCOLATOR": true,
     "USE_RT_IN_PERCOLATOR": false,
     "VERSION": "docs/version_x.x.x"
 }

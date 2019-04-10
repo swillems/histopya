@@ -202,6 +202,8 @@ def __removePseudoAggregateOutliers(
 
 def calibrateAll(ions, pseudo_aggregate_ions, parameters, log, save=False):
     '''TODO comment'''
+    if not parameters["AUTO_CALIBRATE_ION_ALIGNMENT_PARAMETERS"]:
+        return ions
     with log.newSection("Calibrating all ions"):
         calibration_dict = __determineCalibrationTargets(
             pseudo_aggregate_ions,
@@ -373,7 +375,7 @@ def estimateAlignmentParameters(
     save=True
 ):
     '''TODO comment'''
-    if not parameters["AUTOCALIBRATE_ION_ALIGNMENT_PARAMETERS"]:
+    if not parameters["AUTO_ESTIMATE_ION_ALIGNMENT_PARAMETERS"]:
         ion_alignment_parameters = src.io.loadJSON(
             "ION_ALIGNMENT_PARAMETERS_FILE_NAME",
             parameters,
@@ -482,13 +484,13 @@ def __multiprocessedDetectIonNeighbors(kwargs):
         candidate_indices = ion_index + 1 + np.flatnonzero(
             np.abs(
                 ions["CALIBRATED_RT"][ion_index + 1: upper_index] - ion["CALIBRATED_RT"]
-            ) < rt_error
+            ) <= rt_error
         )
         candidate_indices = candidate_indices[
             np.flatnonzero(
                 np.abs(
                     ions["CALIBRATED_DT"][candidate_indices] - ion["CALIBRATED_DT"]
-                ) < dt_ppm_error * ion["CALIBRATED_DT"] / 1000000
+                ) <= dt_ppm_error * ion["CALIBRATED_DT"] / 1000000
             )
         ]
         candidate_indices = candidate_indices[

@@ -158,8 +158,8 @@ def findQuickIsotopes(
                 continue
             a_ions = ions[full_anchor_ions[i]]
             matching_ions = ions[full_anchor_ions[lower_index: upper_index]]
-            matches = np.abs(matching_ions["RT"] - a_ions["RT"]) < rt_error
-            matches &= np.abs(matching_ions["DT"] - a_ions["DT"]) < a_ions["DT"] * (dt_error / 1000000)
+            matches = np.abs(matching_ions["RT"] - a_ions["RT"]) <= rt_error
+            matches &= np.abs(matching_ions["DT"] - a_ions["DT"]) <= a_ions["DT"] * (dt_error / 1000000)
             matches &= (matching_ions["LE"] == a_ions["LE"])
             matches = np.flatnonzero(np.all(matches, axis=1))
             if len(matches) == 1:
@@ -190,6 +190,18 @@ def estimateAlignmentParameters(
     save=True
 ):
     '''TODO COMMENT'''
+    if not parameters["AUTO_ESTIMATE_ANCHOR_ALIGNMENT_PARAMETERS"]:
+        anchor_alignment_parameters = src.io.loadJSON(
+            "ANCHOR_ALIGNMENT_PARAMETERS_FILE_NAME",
+            parameters,
+        )
+        anchor_alignment_parameters["DT"] = [
+            anchor_alignment_parameters["DT"] for i in range(parameters["SAMPLE_COUNT"])
+        ]
+        anchor_alignment_parameters["RT"] = [
+            anchor_alignment_parameters["RT"] for i in range(parameters["SAMPLE_COUNT"])
+        ]
+        return anchor_alignment_parameters
     with log.newSection("Estimating alignment parameters"):
         percentile_limit = int(
             50 + 50 * parameters["ANCHOR_ALIGNMENT_PERCENTILE_THRESHOLD"]
@@ -481,7 +493,7 @@ def __multiprocessedDetectAnchorNeighbors(kwargs):
                 ion_neighbors = ion_neighbors[ions["LE"][ion_neighbors] == ion["LE"]]
             ion_neighbor_dts = ions["SHIFTED_DT"][ion_neighbors]
             ion_neighbors = ion_neighbors[
-                (np.abs(ion_neighbor_dts - ion_dt) * 1000000) < (
+                (np.abs(ion_neighbor_dts - ion_dt) * 1000000) <= (
                     np.minimum(
                         ion_neighbor_dts, ion_dt
                     ) * dt_ppm_error[ion_sample] * (
@@ -1131,15 +1143,16 @@ def __writePercolatorFileWithoutPhysicalPrecursor(
     log,
 ):
     with log.newSection("Creating percolator data"):
-        std_errors = __estimateMZFromDT(
-            anchor_peptide_scores,
-            anchors,
-            peptide_masses,
-            peptides,
-            precursor_indices,
-            parameters,
-            log,
-        )
+        if not parameters["PSEUDO_ION_MOBILITY"]:
+            std_errors = __estimateMZFromDT(
+                anchor_peptide_scores,
+                anchors,
+                peptide_masses,
+                peptides,
+                precursor_indices,
+                parameters,
+                log,
+            )
         data = []
         header = [
             "PIM_id",
@@ -1196,9 +1209,14 @@ def __writePercolatorFileWithoutPhysicalPrecursor(
             else:
                 protein_string = "Ambiguous"
             alternatives = anchor_peptide_match_counts.indptr[anchor_index + 1] - anchor_peptide_match_counts.indptr[anchor_index]
-            best_z = np.argmin(std_errors[:, index]) + 1
-            mass_sigma = std_errors[best_z - 1, index]
-            mod_score = score / (.5 + mass_sigma)
+            if parameters["PSEUDO_ION_MOBILITY"]:
+                best_z = 0
+                mass_sigma = 0
+                mod_score = 0
+            else:
+                best_z = np.argmin(std_errors[:, index]) + 1
+                mass_sigma = std_errors[best_z - 1, index]
+                mod_score = score / (.5 + mass_sigma)
             # if mass_sigma > 1:
             #     continue
             row = [

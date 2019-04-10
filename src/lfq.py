@@ -27,6 +27,7 @@ import csv
 # importlib.reload(src.aggregates)
 # parameter_file_name = "data/lfq_single_A_B_QC/parameters_res_auto.json"
 parameter_file_name = "data/test/parameters.json"
+# parameter_file_name = "data/lfq_swim_190327/parameters_manual.json"
 # parameter_file_name = "data/k562_3_samples/parameters_res_25000.json"
 # parameter_file_name = "data/comparison_k562_lfq/parameters_k562.json"
 # parameter_file_name = "data/comparison_k562_lfq/parameters_lfq.json"
@@ -414,14 +415,51 @@ plt.show()
 
 
 
+eco1 = np.zeros(28)
+yea1 = np.zeros(28)
+hum1 = np.zeros(28)
+eco2 = np.zeros(28)
+yea2 = np.zeros(28)
+hum2 = np.zeros(28)
+for i in range(2, parameters["SAMPLE_COUNT"] + 1): 
+  print("overlap", i)
+  full_overlap = overlap==i
+  a_full = a_classes[full_overlap]
+  b_full = b_classes[full_overlap]
+  ecoli, human, yeast = np.unique(np.concatenate([a_full, b_full]), return_counts=True)[1]
+  total = ecoli + human + yeast
+  ecoli_ratio = ecoli / total
+  human_ratio = human / total
+  yeast_ratio = yeast / total
+  ecoli_expected = ecoli_ratio * ecoli_ratio
+  human_expected = human_ratio * human_ratio
+  yeast_expected = yeast_ratio * yeast_ratio
+  equal = a_full == b_full
+  ecoli_hits = equal[(a_full == -2) | (a_full == -2)]
+  human_hits = equal[(a_full == 0) | (a_full == 0)]
+  yeast_hits = equal[(a_full == 1) | (a_full == 1) ]
+  ecoli_hit_ratio = 2 * np.sum(ecoli_hits) / total
+  yeast_hit_ratio = 2 * np.sum(yeast_hits) / total
+  human_hit_ratio = 2 * np.sum(human_hits) / total
+  print("ecoli", ecoli_hit_ratio / ecoli_expected)
+  print("human", human_hit_ratio / human_expected)
+  print("yeast", yeast_hit_ratio / yeast_expected)
+  eco1[i] = ecoli_hit_ratio / ecoli_ratio
+  yea1[i] = yeast_hit_ratio / yeast_ratio
+  hum1[i] = human_hit_ratio / human_ratio
+  eco2[i] = ecoli_expected / ecoli_ratio
+  yea2[i] = yeast_expected / yeast_ratio
+  hum2[i] = human_expected / human_ratio
+  print("******************")
 
 
-
-
-
-
-
-
+plt.plot(eco1, marker="o", c="blue")
+plt.plot(hum1, marker="o", c="red")
+plt.plot(yea1, marker="o", c="green")
+plt.plot(eco2, marker=".", c="blue")
+plt.plot(hum2, marker=".", c="red")
+plt.plot(yea2, marker=".", c="green")
+plt.show()
 
 
 
@@ -3344,3 +3382,17 @@ for i in range(1, 100):
     z=ai[np.diff(ai.indptr)==10]
     zz=z.todense().A
     plt.show(plt.plot(zz.T))
+
+
+
+s = np.flatnonzero(anchors["ION_COUNT"] == parameters["SAMPLE_COUNT"])[::1000]
+rts = anchors["RT"][s]
+order = np.argsort(rts)
+rts = rts[order]
+s = s[order]
+a = anchor_ions[s].todense().A
+# b = (ions["CALIBRATED_DT"][a] - anchors["DT"][s].reshape(-1, 1))
+# b = 1000000 * (a - anchors["MZ"][s].reshape(-1, 1)) / anchors["MZ"][s].reshape(-1, 1)
+b = ions["RT"][a] - ions["CALIBRATED_RT"][a]
+# plt.show(plt.plot(a))
+[plt.show(plt.plot(rts, b[:,i])) for i in range(parameters["SAMPLE_COUNT"])]

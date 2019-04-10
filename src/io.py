@@ -78,7 +78,7 @@ def loadArrayFromCsv(file_name, parameters, log=None):
     ''' Loads a numpy array from the corresponding CSV file name in parameters'''
     if log is not None:
         log.printIO(file_name, "Loading")
-    array = pd.read_csv(file_name).values
+    array = pd.read_csv(file_name, sep=parameters["APEX_DELIMITER"]).values
     return array
 
 

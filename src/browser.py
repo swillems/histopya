@@ -27,7 +27,9 @@ import matplotlib as mpl
 import matplotlib.cm as cm
 from matplotlib import collections as mc
 from matplotlib.widgets import Slider, RadioButtons, Button
-parameter_file_name = "data/lopit/parameters_manual.json"
+parameter_file_name = "data/tenzer/parameters.json"
+#parameter_file_name = "data/ecoli_swath/parameters_manual.json"
+#parameter_file_name = "data/lfq_swim_190327/parameters_manual.json"
 parameters = src.parameters.importParameterDictFromJSON(parameter_file_name)
 log = src.io.Log(parameters["LOG_FILE_NAME"][:-4] + "_interactive.txt")
 anchors = src.io.loadArray("ANCHORS_FILE_NAME", parameters)
