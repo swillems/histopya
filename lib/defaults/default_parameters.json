@@ -31,7 +31,7 @@
     "AUTO_ESTIMATE_ANCHOR_ALIGNMENT_PARAMETERS": true,
     "BASE_PATH": null,
     "CALIBRATED_IONS_FILE_NAME": "[OUTPUT_PATH]calibrated_ions.npy",
-    "CPU_COUNT": -1,
+    "CPU_COUNT": 0,
     "DATABASE_FILE_NAMES": [
         null
     ],
@@ -62,7 +62,7 @@
     "MINIMUM_OVERLAP": 2,
     "MINIMUM_SPECTRUM_PEAKS": 5,
     "NEIGHBOR_ALL_CHANNELS": true,
-    "NEIGHBOR_THRESHOLD": 0.997,
+    "NEIGHBOR_THRESHOLD": 0.99999,
     "OUTPUT_PATH": "[BASE_PATH]results/",
     "PERCOLATOR_DATA_FILE_NAME": "[OUTPUT_PATH]percolator.csv",
     "PERCOLATOR_DECOY_PIMS": "[PERCOLATOR_PATH]decoy_pims.csv",
@@ -82,7 +82,7 @@
     "PTMS_FILE_NAME": "lib/defaults/default_ptms.json",
     "QUICK_ANCHOR_DISTRIBUTION_PLOTS": {
         "CALIBRATED_DT": "[PLOTS_PATH]quick_anchor_CALIBRATED_DT_distribution.pdf",
-        "CALIBRATED_INTENSITY": "[PLOTS_PATH]quick_anchor_CALIBRATED_LOGINT_distribution.pdf",
+        "CALIBRATED_INTENSITY": "[PLOTS_PATH]quick_anchor_CALIBRATED_INTENSITY_distribution.pdf",
         "CALIBRATED_MZ": "[PLOTS_PATH]quick_anchor_CALIBRATED_MZ_distribution.pdf",
         "CALIBRATED_RT": "[PLOTS_PATH]quick_anchor_CALIBRATED_RT_distribution.pdf",
         "DT": "[PLOTS_PATH]quick_anchor_DT_distribution.pdf",
@@ -102,12 +102,11 @@
         "MZ": "[PLOTS_PATH]quick_anchor_MZ.pdf",
         "RT": "[PLOTS_PATH]quick_anchor_RT.pdf"
     },
+    "QUICK_ANCHOR_TOP_ION_COUNT_PER_SAMPLE": 50000,
     "RAW_IONS_FILE_NAME": "[OUTPUT_PATH]raw_ions.npy",
     "RELATIVE_ATTRIBUTES": [
         "MZ",
-        "DT",
-        "CALIBRATED_MZ",
-        "CALIBRATED_DT"
+        "CALIBRATED_MZ"
     ],
     "REORDERED_IONS_FILE_NAME": "[OUTPUT_PATH]reordered_ions.npy",
     "REQUIRE_PHYSICAL_PRECURSOR": false,

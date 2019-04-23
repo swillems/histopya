@@ -7,11 +7,13 @@ import time
 import scipy.sparse
 import numpy as np
 import traceback as tb
-import seaborn as sns
 import pandas as pd
 import csv
 import os
 from contextlib import contextmanager
+import matplotlib
+matplotlib.use("Agg")
+import seaborn as sns
 from matplotlib import pyplot as plt
 
 
@@ -328,10 +330,10 @@ def plotAnchors(
                 plt.plot(anchor[attribute], anchor["SAMPLE"])
             plt.xlabel(attribute)
             plt.ylabel("SAMPLE")
-            plt.get_current_fig_manager().resize(
-                width=plot_width,
-                height=plot_height
-            )
+            # plt.get_current_fig_manager().resize(
+            #     width=plot_width,
+            #     height=plot_height
+            # )
             plt.savefig(figure_names[attribute], bbox_inches='tight')
             plt.close()
 
@@ -376,10 +378,10 @@ def plotAnchorDistributions(
             )
             plt.xlabel("SAMPLE")
             plt.ylabel("{} distance to anchor averages".format(label))
-            plt.get_current_fig_manager().resize(
-                width=plot_width,
-                height=plot_height
-            )
+            # plt.get_current_fig_manager().resize(
+            #     width=plot_width,
+            #     height=plot_height
+            # )
             plt.savefig(figure_names[attribute], bbox_inches='tight')
             plt.close()
 
@@ -438,8 +440,7 @@ def plotAnchorDistributions(
 
 
 #TODO moved from anchors
-def plotAnchors(parameters, anchors, ions):
-    log = parameters["LOG"]
+def plotAnchorCounts(parameters, anchors, ions, log):
     log.printMessage("Saving anchor count plots")
     figure_names = parameters["ANCHOR_COUNT_PLOTS"]
     plot_width = parameters["PLOT_WIDTH"]
@@ -459,10 +460,10 @@ def plotAnchors(parameters, anchors, ions):
             plt.plot(counts, frequencies)
         plt.xlabel("Anchor size")
         plt.ylabel("Frequency")
-        plt.get_current_fig_manager().resize(
-            width=plot_width,
-            height=plot_height
-        )
+        # plt.get_current_fig_manager().resize(
+        #     width=plot_width,
+        #     height=plot_height
+        # )
         plt.savefig(figure_names[attribute], bbox_inches='tight')
         plt.close()
 

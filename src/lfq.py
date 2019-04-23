@@ -17,7 +17,6 @@ import time
 import traceback as tb
 from scipy.special import binom as binom
 from contextlib import contextmanager
-from collections import defaultdict
 import seaborn as sns
 from matplotlib import pyplot as plt
 from sklearn import linear_model
@@ -28,9 +27,11 @@ import csv
 # parameter_file_name = "data/lfq_single_A_B_QC/parameters_res_auto.json"
 parameter_file_name = "data/test/parameters.json"
 # parameter_file_name = "data/lfq_swim_190327/parameters_manual.json"
+# parameter_file_name = "data/lfq_udmse_190327/parameters_default_peakpicking_test.json"
 # parameter_file_name = "data/k562_3_samples/parameters_res_25000.json"
 # parameter_file_name = "data/comparison_k562_lfq/parameters_k562.json"
 # parameter_file_name = "data/comparison_k562_lfq/parameters_lfq.json"
+# parameters = src.parameters.importParameterDictFromJSON("data/test/parameters.json")
 parameters = src.parameters.importParameterDictFromJSON(parameter_file_name)
 log = src.io.Log(parameters["LOG_FILE_NAME"][:-4] + "_interactive.txt")
 anchors = src.io.loadArray("ANCHORS_FILE_NAME", parameters)
@@ -136,71 +137,37 @@ annotation_data = src.aggregates.writePercolatorFile(
 
 
 
-#
-#
-#
-#
-# for xx,yy, c, ca, cb in islice(zip(x, y, r, ra, rb),None,None,1000):
-#     aa = a[xx]
-#     bb = a[yy]
-#     mza = anchors[aa]["MZ"]
-#     mzb = anchors[bb]["MZ"]
-#     ia = i[xx]
-#     ib = i[yy]
-#     tmp = plt.scatter(
-#         ia,
-#         ib,
-#         c=np.arange(10)%2
-#     )
-#     tmp = plt.title("{}\n{}\n{}\n{}\n{}".format(mza, mzb, c, ca, cb))
-#     plt.show()
-#
-#
-# def cc(a, b):
-#     a_avgs = np.average(a, axis=1)
-#     b_avgs = np.average(b, axis=1)
-#     a_diffs = a - a_avgs.reshape(-1, 1)
-#     b_diffs = b - b_avgs.reshape(-1, 1)
-#     denom = np.sum(a_diffs * b_diffs, axis=1)
-#     enuma = np.sqrt(np.sum(a_diffs * a_diffs, axis=1))
-#     enumb = np.sqrt(np.sum(b_diffs * b_diffs, axis=1))
-#     r = denom / (enuma * enumb)
-#     return r
-#
-#
+sample_types = "swath"
 
+if sample_types == "in_house":
+    conditions = {
+        "A": slice(None, 9),
+        "B": slice(9, 18),
+        "QC": slice(18, None)
+    }
+elif sample_types == "test":
+    conditions = {
+        "A": 0,
+        "B": 1,
+        "QC": 2
+    }
+elif sample_types == "tenzer":
+    conditions = {
+        "A": slice(0, None, 2),
+        "B": slice(1, None, 2),
+    }
+elif sample_types == "600ms":
+    conditions = {
+        "A": [0,1,4,5],
+        "B": [2,3,6,7],
+    }
+elif sample_types == "swath":
+    conditions = {
+        "A": slice(None, 3),
+        "B": slice(3, 6),
+        "QC": slice(6, None)
+    }
 
-
-# plt.plot(*np.unique(np.round(scipy.stats.variation(ii[:,::],axis=1),3), return_counts=True), marker=".",c="b")
-
-
-
-
-
-
-
-
-
-
-
-conditions = {
-    "A": slice(None, 9),
-    "B": slice(9, 18),
-    "QC": slice(18, None)
-}
-# conditions = {
-#     "A": 0,
-#     "B": 1,
-#     "QC": 2
-# }
-# conditions = {
-#     "A": slice(0, None, 2),
-#     "B": slice(1, None, 2),
-# }
-# conditions = {
-#     "A": [0,1,4,5],
-#     "B": [2,3,6,7],
-# }
 anchors_per_condition = {}
 anchor_ions_per_condition = {}
 
@@ -415,58 +382,83 @@ plt.show()
 
 
 
-eco1 = np.zeros(28)
-yea1 = np.zeros(28)
-hum1 = np.zeros(28)
-eco2 = np.zeros(28)
-yea2 = np.zeros(28)
-hum2 = np.zeros(28)
-for i in range(2, parameters["SAMPLE_COUNT"] + 1): 
-  print("overlap", i)
-  full_overlap = overlap==i
-  a_full = a_classes[full_overlap]
-  b_full = b_classes[full_overlap]
-  ecoli, human, yeast = np.unique(np.concatenate([a_full, b_full]), return_counts=True)[1]
-  total = ecoli + human + yeast
-  ecoli_ratio = ecoli / total
-  human_ratio = human / total
-  yeast_ratio = yeast / total
-  ecoli_expected = ecoli_ratio * ecoli_ratio
-  human_expected = human_ratio * human_ratio
-  yeast_expected = yeast_ratio * yeast_ratio
-  equal = a_full == b_full
-  ecoli_hits = equal[(a_full == -2) | (a_full == -2)]
-  human_hits = equal[(a_full == 0) | (a_full == 0)]
-  yeast_hits = equal[(a_full == 1) | (a_full == 1) ]
-  ecoli_hit_ratio = 2 * np.sum(ecoli_hits) / total
-  yeast_hit_ratio = 2 * np.sum(yeast_hits) / total
-  human_hit_ratio = 2 * np.sum(human_hits) / total
-  print("ecoli", ecoli_hit_ratio / ecoli_expected)
-  print("human", human_hit_ratio / human_expected)
-  print("yeast", yeast_hit_ratio / yeast_expected)
-  eco1[i] = ecoli_hit_ratio / ecoli_ratio
-  yea1[i] = yeast_hit_ratio / yeast_ratio
-  hum1[i] = human_hit_ratio / human_ratio
-  eco2[i] = ecoli_expected / ecoli_ratio
-  yea2[i] = yeast_expected / yeast_ratio
-  hum2[i] = human_expected / human_ratio
-  print("******************")
+eco1 = np.zeros(parameters["SAMPLE_COUNT"] + 1)
+yea1 = np.zeros(parameters["SAMPLE_COUNT"] + 1)
+hum1 = np.zeros(parameters["SAMPLE_COUNT"] + 1)
+eco2 = np.zeros(parameters["SAMPLE_COUNT"] + 1)
+yea2 = np.zeros(parameters["SAMPLE_COUNT"] + 1)
+hum2 = np.zeros(parameters["SAMPLE_COUNT"] + 1)
+for i in range(2, parameters["SAMPLE_COUNT"] + 1):
+    print("overlap", i)
+    full_overlap = overlap==i
+    a_full = a_classes[full_overlap]
+    b_full = b_classes[full_overlap]
+    ecoli, human, yeast = np.unique(np.concatenate([a_full, b_full]), return_counts=True)[1]
+    total = ecoli + human + yeast
+    ecoli_ratio = ecoli / total
+    human_ratio = human / total
+    yeast_ratio = yeast / total
+    ecoli_expected = ecoli_ratio * ecoli_ratio
+    human_expected = human_ratio * human_ratio
+    yeast_expected = yeast_ratio * yeast_ratio
+    equal = a_full == b_full
+    ecoli_hits = equal[(a_full == -2) | (a_full == -2)]
+    human_hits = equal[(a_full == 0) | (a_full == 0)]
+    yeast_hits = equal[(a_full == 1) | (a_full == 1) ]
+    ecoli_hit_ratio = 2 * np.sum(ecoli_hits) / total
+    yeast_hit_ratio = 2 * np.sum(yeast_hits) / total
+    human_hit_ratio = 2 * np.sum(human_hits) / total
+    print("ecoli", ecoli_hit_ratio / ecoli_expected)
+    print("human", human_hit_ratio / human_expected)
+    print("yeast", yeast_hit_ratio / yeast_expected)
+    eco1[i] = ecoli_hit_ratio / ecoli_ratio
+    yea1[i] = yeast_hit_ratio / yeast_ratio
+    hum1[i] = human_hit_ratio / human_ratio
+    eco2[i] = ecoli_expected / ecoli_ratio
+    yea2[i] = yeast_expected / yeast_ratio
+    hum2[i] = human_expected / human_ratio
+    print("******************")
 
 
-plt.plot(eco1, marker="o", c="blue")
-plt.plot(hum1, marker="o", c="red")
-plt.plot(yea1, marker="o", c="green")
-plt.plot(eco2, marker=".", c="blue")
-plt.plot(hum2, marker=".", c="red")
-plt.plot(yea2, marker=".", c="green")
+plt.plot(eco1, marker="o", linestyle="-", c="red")
+plt.plot(hum1, marker="o", linestyle="-", c="grey")
+plt.plot(yea1, marker="o", linestyle="-", c="green")
+plt.plot(eco2, marker=".", linestyle=":", c="red")
+plt.plot(hum2, marker=".", linestyle=":", c="grey")
+plt.plot(yea2, marker=".", linestyle=":", c="green")
 plt.show()
 
 
 
 
+a_indices, b_indices = neighbors.nonzero()
+overlap = neighbors.data
+avg_intensity = anchors_per_condition["A"]["INTENSITY"] + anchors_per_condition["B"]["INTENSITY"]
 
-neighbors = scipy.sparse.load_npz(parameters["ION_NEIGHBORS_FILE_NAME"])
-neighbors += neighbors.T
+a_logfc = logfcs[a_indices]
+b_logfc = logfcs[b_indices]
+logfc_diffs = a_logfc - b_logfc
+c = np.isinf(logfc_diffs)
+c |= np.isnan(logfc_diffs)
+# c |= avg_intensity[a_indices] < 1000
+# c |= avg_intensity[a_indices] > 10000
+c |= np.round(a_logfc) == 0
+c |= np.round(b_logfc) == 0
+a_logfc = a_logfc[~c]
+b_logfc = b_logfc[~c]
+logfc_diffs = logfc_diffs[~c]
+overlap = overlap[~c]
+
+logfc_diffs_round = np.round(logfc_diffs, 2)
+for i in range(2, parameters["SAMPLE_COUNT"] + 1):
+    a, b = np.unique(np.abs(logfc_diffs_round[overlap == i]), return_counts=True)
+    plt.plot(a, np.cumsum(b) / sum(b), marker=".")
+
+plt.show()
+
+
+
+
 
 def reStitchAnchors():
     a, b = neighbors.nonzero()
@@ -3385,14 +3377,15 @@ for i in range(1, 100):
 
 
 
-s = np.flatnonzero(anchors["ION_COUNT"] == parameters["SAMPLE_COUNT"])[::1000]
-rts = anchors["RT"][s]
-order = np.argsort(rts)
-rts = rts[order]
-s = s[order]
+s = np.flatnonzero(anchors["ION_COUNT"] == parameters["SAMPLE_COUNT"])
+# rts = anchors["RT"][s]
+# order = np.argsort(rts)
+# rts = rts[order]
+# s = s[order]
 a = anchor_ions[s].todense().A
 # b = (ions["CALIBRATED_DT"][a] - anchors["DT"][s].reshape(-1, 1))
-# b = 1000000 * (a - anchors["MZ"][s].reshape(-1, 1)) / anchors["MZ"][s].reshape(-1, 1)
-b = ions["RT"][a] - ions["CALIBRATED_RT"][a]
-# plt.show(plt.plot(a))
-[plt.show(plt.plot(rts, b[:,i])) for i in range(parameters["SAMPLE_COUNT"])]
+b = 1000000 * (ions["CALIBRATED_MZ"][a] - anchors["MZ"][s].reshape(-1, 1)) / anchors["MZ"][s].reshape(-1, 1)
+b = ions["CALIBRATED_RT"][a] - anchors["RT"][s].reshape(-1, 1)
+plt.show([[plt.plot(np.percentile(b[:,i],np.arange(101)),np.arange(101)),plt.axhline(50),plt.axvline(0)] for i in range(27)])
+# plt.show(plt.plot(b))
+# [plt.show(plt.plot(rts, b[:,i])) for i in range(parameters["SAMPLE_COUNT"])]

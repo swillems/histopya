@@ -8,28 +8,15 @@ import src.aggregates
 import src.peptides
 import pandas as pd
 import numpy as np
-import src.parallelization as mp
-import scipy.sparse
-from collections import defaultdict
-import json
-import sys
-import time
-import traceback as tb
-from scipy.special import binom as binom
-from contextlib import contextmanager
-from collections import defaultdict
-import seaborn as sns
 from matplotlib import pyplot as plt
-from sklearn import linear_model
-import sklearn
-import csv
 import matplotlib as mpl
 import matplotlib.cm as cm
 from matplotlib import collections as mc
 from matplotlib.widgets import Slider, RadioButtons, Button
-parameter_file_name = "data/tenzer/parameters.json"
-#parameter_file_name = "data/ecoli_swath/parameters_manual.json"
-#parameter_file_name = "data/lfq_swim_190327/parameters_manual.json"
+
+
+parameter_file_name = "data/pharmafluidics/parameters.json"
+# parameter_file_name = "data/ecoli_swath/parameters_manual.json"
 parameters = src.parameters.importParameterDictFromJSON(parameter_file_name)
 log = src.io.Log(parameters["LOG_FILE_NAME"][:-4] + "_interactive.txt")
 anchors = src.io.loadArray("ANCHORS_FILE_NAME", parameters)
@@ -38,14 +25,6 @@ anchor_ions = src.io.loadMatrix(
     parameters,
 )
 ions = src.io.loadArray("IONS_FILE_NAME", parameters)
-ion_alignment_parameters = src.io.loadJSON(
-    "ION_ALIGNMENT_PARAMETERS_FILE_NAME",
-    parameters,
-)
-anchor_alignment_parameters = src.io.loadJSON(
-    "ANCHOR_ALIGNMENT_PARAMETERS_FILE_NAME",
-    parameters,
-)
 neighbors = src.io.loadMatrix(
     "ANCHOR_NEIGHBORS_FILE_NAME",
     parameters,

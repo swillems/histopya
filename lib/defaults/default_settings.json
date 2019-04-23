@@ -1,0 +1,153 @@
+{
+    "WORKFLOW": [
+        "IMPORT_APEX_FILES",
+        "DETECT_PSEUDO_AGGREGATES",
+        "PARTITION_PSEUDO_AGGREGATES",
+        "CALIBRATE_SAMPLE_RTS",
+        "CALIBRATE_SAMPLE_DTS",
+        "CALIBRATE_SAMPLE_MZS",
+        "ESTIMATE_BETWEEN_SAMPLE_RT_ERROR",
+        "ESTIMATE_BETWEEN_SAMPLE_DT_ERROR",
+        "ESTIMATE_BETWEEN_SAMPLE_MZ_ERROR",
+        "DETECT_AGGREGATES",
+        "CALIBRATE_SAMPLE_INTESITIES",
+        "DETECT_PSEUDO_ISOTOPES",
+        "ESTIMATE_WITHIN_SAMPLE_RT_ERROR",
+        "ESTIMATE_WITHIN_SAMPLE_DT_ERROR",
+        "CALIBRATE_SAMPLE_FUNCTION_DT",
+        "CREATE_AGGREGATE_NETWORK",
+        "CREATE_ANNOTATION_TABLE",
+        "ANNOTATE_NETWORK",
+        "WRITE_TO_PERCOLATOR",
+        "RUN_PERCOLATOR"
+    ],
+    "PARAMETERS": {
+        "ANCHOR_ALIGNMENT_DEVIATION_FACTOR": 3,
+        "APEX_COLUMNS": {
+            "DT": 8,
+            "FUNCTION": 0,
+            "INTENSITY": 5,
+            "MZ": 2,
+            "RT": 4
+        },
+        "APEX_DELIMITER": ",",
+        "CPU_COUNT": 0,
+        "DT_SHIFT_DEVIATION_FACTOR": 2,
+        "DT_SHIFT_PERCENTILE": 0.1,
+        "DT_SHIFT_LIMITS": [
+            50,
+            180
+        ],
+        "DIGESTION_AMINO_ACIDS": "KR",
+        "FIXED_MODIFICATIONS": {
+            "C": 57.021464
+        },
+        "HE_DT_SHIFT": 0,
+        "HE_ONLY": true,
+        "IDENTIFICATION_PPM": 20,
+        "ION_ALIGNMENT_DEVIATION_FACTOR": 3,
+        "FILTER_PRECURSOR_EXISTENCE_IN_LE": true,
+        "ISOTOPIC_DELTA_MASS": 1.002861,
+        "MAXIMUM_PRECURSOR_CHARGE": 3,
+        "MINIMUM_OVERLAP": 2,
+        "MINIMUM_SPECTRUM_PEAKS": 5,
+        "NEIGHBOR_ALL_CHANNELS": true,
+        "NEIGHBOR_THRESHOLD": 0.99999,
+        "PLOT_HEIGHT": 1080,
+        "PLOT_WIDTH": 1920,
+        "PROTON_MASS": 1.007276,
+        "PSEUDO_ION_MOBILITY": false,
+        "QUICK_ANCHOR_INTENSITY_THRESHOLD": 14,
+        "QUICK_ANCHOR_OUTLIER_THRESHOLD": 5,
+        "QUICK_ANCHOR_TOP_ION_COUNT_PER_SAMPLE": 50000,
+        "REQUIRE_PHYSICAL_PRECURSOR": false,
+        "SAMPLE_COUNT": null,
+        "SIGNAL_COUNT_THRESHOLD": 2,
+        "TERMINI": {
+            "N": null,
+            "C": null
+        },
+        "USE_PERCOLATOR": true,
+        "USE_RT_IN_PERCOLATOR": false,
+    },
+    "IO": {
+        "PATHS": {
+            "BASE_PATH": null,
+            "OUTPUT_PATH": "[BASE_PATH]results/",
+            "PERCOLATOR_PATH": "[OUTPUT_PATH]percolator/",
+            "PLOTS_PATH": "[OUTPUT_PATH]plots/",
+            "APEX_PATH": "[BASE_PATH]apex/",
+        },
+        "STATIC": {
+            "AMINO_ACID_FILE_NAME": "lib/defaults/default_amino_acids.json",
+            "APEX_FILE_NAMES": "[BASE_PATH]apex",
+            "ATOM_FILE_NAME": "lib/defaults/default_atoms.json",
+            "DATABASE_FILE_NAMES": [
+                null
+            ],
+            "PTMS_FILE_NAME": "lib/defaults/default_ptms.json",
+        },
+        "DYNAMIC": {
+            "ANCHORED_IONS_FILE_NAME": "[OUTPUT_PATH]anchored_ions.npy",
+            "ANCHORS_FILE_NAME": "[OUTPUT_PATH]anchors.npy",
+            "ANCHOR_ALIGNMENT_PARAMETERS_FILE_NAME": "[OUTPUT_PATH]anchor_alignment_parameters.json",
+            "ANCHOR_COUNT_PLOTS": {
+                "HE": "[PLOTS_PATH]anchor_ion_count_HE.pdf",
+                "LE": "[PLOTS_PATH]anchor_ion_count_LE.pdf"
+            },
+            "ANCHOR_IONS_FILE_NAME": "[OUTPUT_PATH]anchor_ions.npz",
+            "ANCHOR_NEIGHBORS_FILE_NAME": "[OUTPUT_PATH]anchor_neighbors.npz",
+            "ANCHOR_NEIGHBORS_TRIMMED_FILE_NAME": "[OUTPUT_PATH]anchor_neighbors_trimmed.npz",
+            "ANCHOR_PEPTIDE_MATCH_COUNTS_FILE_NAME": "[OUTPUT_PATH]anchor_peptide_match_counts.npz",
+            "ANCHOR_PEPTIDE_SCORES_FILE_NAME": "[OUTPUT_PATH]anchor_peptide_scores.npz",
+            "ANCHOR_SPECTRUM_FILE_NAME": "[OUTPUT_PATH]anchor_spectra.npy",
+            "ANCHOR_MINIMUM_OVERLAP_FILE_NAME": "[OUTPUT_PATH]anchor_minimum_overlap.npy",
+            "CALIBRATED_IONS_FILE_NAME": "[OUTPUT_PATH]calibrated_ions.npy",
+            "FULL_PARAMETERS_FILE_NAME": "[OUTPUT_PATH]parameters.json",
+            "ION_ALIGNMENT_PARAMETERS_FILE_NAME": "[OUTPUT_PATH]ion_alignment_parameters.json",
+            "ION_NEIGHBORS_FILE_NAME": "[OUTPUT_PATH]ion_neighbors.npz",
+            "IONS_FILE_NAME": "[OUTPUT_PATH]ions.npy",
+            "LOG_FILE_NAME": "[OUTPUT_PATH]log.txt",
+            "MGF_FILE_NAME": "[OUTPUT_PATH]spectrum.mgf",
+            "PERCOLATOR_DATA_FILE_NAME": "[OUTPUT_PATH]percolator.csv",
+            "PERCOLATOR_DECOY_PIMS": "[PERCOLATOR_PATH]decoy_pims.csv",
+            "PERCOLATOR_LOCATION": "percolator",
+            "PERCOLATOR_LOG": "[PERCOLATOR_PATH]percolator_log.txt",
+            "PERCOLATOR_TARGET_PEPTIDES": "[PERCOLATOR_PATH]target_peptides.csv",
+            "PERCOLATOR_TARGET_PIMS": "[PERCOLATOR_PATH]target_pims.csv",
+            "PERCOLATOR_TARGET_PROTEINS": "[PERCOLATOR_PATH]target_proteins.csv",
+            "PSEUDO_AGGREGATE_IONS_FILE_NAME": "[OUTPUT_PATH]pseudo_aggregate_ions.npy",
+            "PSEUDO_ISOTOPIC_PAIRS_FILE_NAME": "[OUTPUT_PATH]pseudo_isotopic_pairs.npy",
+            "QUICK_ANCHOR_DISTRIBUTION_PLOTS": {
+                "CALIBRATED_DT": "[PLOTS_PATH]quick_anchor_CALIBRATED_DT_distribution.pdf",
+                "CALIBRATED_INTENSITY": "[PLOTS_PATH]quick_anchor_CALIBRATED_INTENSITY_distribution.pdf",
+                "CALIBRATED_MZ": "[PLOTS_PATH]quick_anchor_CALIBRATED_MZ_distribution.pdf",
+                "CALIBRATED_RT": "[PLOTS_PATH]quick_anchor_CALIBRATED_RT_distribution.pdf",
+                "DT": "[PLOTS_PATH]quick_anchor_DT_distribution.pdf",
+                "INTENSITY": "[PLOTS_PATH]quick_anchor_INTENSITY_distribution.pdf",
+                "MZ": "[PLOTS_PATH]quick_anchor_MZ_distribution.pdf",
+                "RT": "[PLOTS_PATH]quick_anchor_RT_distribution.pdf"
+            },
+            "QUICK_ANCHOR_PLOTS": {
+                "CALIBRATED_DT": "[PLOTS_PATH]quick_anchor_CALIBRATED_DT.pdf",
+                "CALIBRATED_INTENSITY": "[PLOTS_PATH]quick_anchor_CALIBRATED_INTENSITY.pdf",
+                "CALIBRATED_MZ": "[PLOTS_PATH]quick_anchor_CALIBRATED_MZ.pdf",
+                "CALIBRATED_RT": "[PLOTS_PATH]quick_anchor_CALIBRATED_RT.pdf",
+                "DT": "[PLOTS_PATH]quick_anchor_DT.pdf",
+                "INTENSITY": "[PLOTS_PATH]quick_anchor_INTENSITY.pdf",
+                "MZ": "[PLOTS_PATH]quick_anchor_MZ.pdf",
+                "RT": "[PLOTS_PATH]quick_anchor_RT.pdf"
+            },
+            "RAW_IONS_FILE_NAME": "[OUTPUT_PATH]raw_ions.npy",
+            "RELATIVE_ATTRIBUTES": [
+                "MZ",
+                "CALIBRATED_MZ"
+            ],
+            "REORDERED_IONS_FILE_NAME": "[OUTPUT_PATH]reordered_ions.npy",
+            "SPECTRA_FILE_NAME": "[OUTPUT_PATH]spectra.npy",
+            "SPECTRUM_ANCHORS_FILE_NAME": "[OUTPUT_PATH]spectrum_anchors.npz",
+            "UNFRAGMENTED_PRECURSOR_PAIRS_FILE_NAME": "[OUTPUT_PATH]unfragmented_precursor_pairs.npy"
+        }
+    },
+    "VERSION": "docs/version_x.x.x"
+}

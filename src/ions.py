@@ -115,19 +115,30 @@ def __mergeIonArraysIntoStructuredArray(ions, column_names, log):
 
 def getPseudoAggregatesIndices(ions, parameters, log, save=True):
     ''''TODO comment'''
+    if (not parameters["AUTO_ESTIMATE_ION_ALIGNMENT_PARAMETERS"]) and (not parameters["AUTO_CALIBRATE_ION_ALIGNMENT_PARAMETERS"]):
+        return None
     with log.newSection("Detecting pseudo aggregate ion indices"):
         sample_count = parameters['SAMPLE_COUNT']
-        # TODO select top million? ions to avoid overfitting of high/low intensities?
         intensity_threshold = parameters['QUICK_ANCHOR_INTENSITY_THRESHOLD']
-        calibration_selection = ions["LE"]
-        if parameters["HE_ONLY"]:
-            calibration_selection = ~calibration_selection
-        # to_select_per_sample = parameters['QUICK_ANCHOR_INTENSITY_THRESHOLD']
-        # ind = np.argpartition(ions["INTENSITY"], -to_select_per_sample)[-to_select_per_sample:]
-        le_indices = np.flatnonzero(
-            calibration_selection & (
-                ions["INTENSITY"] > 2**intensity_threshold
-            )
+        # calibration_selection = ions["LE"]
+        # if parameters["HE_ONLY"]:
+        #     calibration_selection = ~calibration_selection
+        # le_indices = np.flatnonzero(
+        #     calibration_selection & (
+        #         ions["INTENSITY"] > 2**intensity_threshold
+        #     )
+        # )
+        to_select_per_sample = parameters['QUICK_ANCHOR_TOP_ION_COUNT_PER_SAMPLE']
+        start_indices = np.searchsorted(ions["SAMPLE"], np.arange(parameters["SAMPLE_COUNT"] + 1))
+        le_indices = np.concatenate(
+            [
+                start + np.argpartition(
+                    ions["INTENSITY"][start: end], - to_select_per_sample
+                )[-to_select_per_sample:] for start, end in zip(
+                    start_indices[:-1],
+                    start_indices[1:]
+                )
+            ]
         )
         le_ions = ions[le_indices]
         le_order = np.argsort(le_ions["MZ"])
@@ -163,7 +174,7 @@ def getPseudoAggregatesIndices(ions, parameters, log, save=True):
         )
         if save:
             src.io.saveArray(
-                quick_indices,
+                ions[quick_indices],
                 "PSEUDO_AGGREGATE_IONS_FILE_NAME",
                 parameters,
                 log
@@ -375,6 +386,15 @@ def estimateAlignmentParameters(
     save=True
 ):
     '''TODO comment'''
+    def summarizeAnchors(estimation_anchors, parameters, log):
+        log.printMessage("Summarizing estimation anchors")
+        anchors = np.empty(
+            len(estimation_anchors),
+            dtype=estimation_anchors.dtype
+        )
+        for attribute in anchors.dtype.names:
+            anchors[attribute] = np.average(estimation_anchors[attribute], axis=1)
+        return anchors
     if not parameters["AUTO_ESTIMATE_ION_ALIGNMENT_PARAMETERS"]:
         ion_alignment_parameters = src.io.loadJSON(
             "ION_ALIGNMENT_PARAMETERS_FILE_NAME",
@@ -382,9 +402,10 @@ def estimateAlignmentParameters(
         )
         return ion_alignment_parameters
     with log.newSection("Estimating alignment parameters"):
-        percentile_limit = int(
-            50 + 50 * parameters["ION_ALIGNMENT_PERCENTILE_THRESHOLD"]
-        )
+        summarized_anchors = summarizeAnchors(estimation_anchors, parameters, log)
+        # percentile_limit = int(
+        #     50 + 50 * parameters["ION_ALIGNMENT_PERCENTILE_THRESHOLD"]
+        # )
         deviation_factor = parameters["ION_ALIGNMENT_DEVIATION_FACTOR"]
         ion_alignment_parameters = {}
         for attribute in [
@@ -392,10 +413,26 @@ def estimateAlignmentParameters(
             "CALIBRATED_DT",
             "CALIBRATED_RT",
         ]:
-            ptps = np.ptp(estimation_anchors[attribute], axis=1)
+            average_attribute = summarized_anchors[attribute].reshape((-1, 1))
+            data = estimation_anchors[attribute] - average_attribute
+            # ptps = np.ptp(data, axis=1)
+            # if attribute in parameters["RELATIVE_ATTRIBUTES"]:
+            #     ptps *= 1000000 / np.min(estimation_anchors[attribute], axis=1)
+            # ptp_limit = np.percentile(ptps, percentile_limit) * deviation_factor
             if attribute in parameters["RELATIVE_ATTRIBUTES"]:
-                ptps *= 1000000 / np.min(estimation_anchors[attribute], axis=1)
-            ptp_limit = np.percentile(ptps, percentile_limit) * deviation_factor
+                data *= 1000000 / np.min(estimation_anchors[attribute], axis=1).reshape(-1, 1)
+            # ptp_limit = np.max(np.percentile(data, percentile_limit, axis=0) * deviation_factor)
+            # attribute_std = np.std(np.abs(data), axis=0)
+            # ptp_limit = np.max(attribute_std * deviation_factor)
+            attribute_std = np.sort(np.std(data, axis=0))
+            ptp_limit = np.sqrt(attribute_std[-1]**2 + attribute_std[-2]**2) * deviation_factor
+            # ptps = np.ptp(estimation_anchors[attribute], axis=1)
+            # if attribute in parameters["RELATIVE_ATTRIBUTES"]:
+            #     ptps *= 1000000 / np.min(estimation_anchors[attribute], axis=1)
+            # ptp_limit = np.average(ptps) + np.std(ptps) * deviation_factor
+            # if attribute in parameters["RELATIVE_ATTRIBUTES"]:
+            #     data *= 1000000 / np.min(estimation_anchors[attribute], axis=1).reshape(-1, 1)
+            # ptp_limit = np.percentile(data.flatten(), percentile_limit, axis=0) * deviation_factor
             ion_alignment_parameters[attribute] = ptp_limit
             log.printMessage(
                 "Estimated maximum distance for {} is {}".format(
@@ -428,6 +465,7 @@ def detectAllIonNeighbors(
     save=False
 ):
     with log.newSection("Calculating ion neighbors"):
+        ions = src.ions.sort(ions, "CALIBRATED_MZ", log)
         process_count = parameters["CPU_COUNT"]
         upper_mz_border = np.searchsorted(
             ions["CALIBRATED_MZ"],
@@ -447,7 +485,7 @@ def detectAllIonNeighbors(
                 "in_queue": in_queue,
                 "ions": ions,
                 'upper_mz_border': upper_mz_border,
-                'dt_ppm_error': ion_alignment_parameters["CALIBRATED_DT"],
+                'dt_error': ion_alignment_parameters["CALIBRATED_DT"],
                 'rt_error': ion_alignment_parameters["CALIBRATED_RT"],
             },
             process_count=process_count,
@@ -463,7 +501,13 @@ def detectAllIonNeighbors(
                 parameters,
                 log
             )
-    return neighbors
+        ions = src.ions.trimNeighborsToAnchors(
+            ions,
+            neighbors,
+            parameters,
+            log
+        )
+    return ions, neighbors
 
 
 def __multiprocessedDetectIonNeighbors(kwargs):
@@ -471,7 +515,7 @@ def __multiprocessedDetectIonNeighbors(kwargs):
     out_queue = kwargs['out_queue']
     ions = kwargs['ions']
     upper_mz_border = kwargs['upper_mz_border']
-    dt_ppm_error = kwargs['dt_ppm_error']
+    dt_error = kwargs['dt_error']
     rt_error = kwargs['rt_error']
     selected_ions = in_queue.get()
     neighbors = scipy.sparse.dok_matrix(
@@ -490,7 +534,7 @@ def __multiprocessedDetectIonNeighbors(kwargs):
             np.flatnonzero(
                 np.abs(
                     ions["CALIBRATED_DT"][candidate_indices] - ion["CALIBRATED_DT"]
-                ) <= dt_ppm_error * ion["CALIBRATED_DT"] / 1000000
+                ) <= dt_error
             )
         ]
         candidate_indices = candidate_indices[

@@ -119,7 +119,7 @@ def findQuickIsotopes(
     ions,
     anchors,
     anchor_ions,
-    alignment_parameters,
+    ion_alignment_parameters,
     parameters,
     log,
     save=True
@@ -137,13 +137,13 @@ def findQuickIsotopes(
         isotopic_pairs = []
         upper_index = 1
         lower_index = 1
-        mz_error = alignment_parameters["CALIBRATED_MZ"]
-        rt_error = alignment_parameters["CALIBRATED_RT"]
-        dt_error = alignment_parameters["CALIBRATED_DT"]
+        mz_error = ion_alignment_parameters["CALIBRATED_MZ"]
+        rt_error = ion_alignment_parameters["CALIBRATED_RT"]
+        dt_error = ion_alignment_parameters["CALIBRATED_DT"]
         for i, anchor in enumerate(full_anchors):
             isotope_mass = anchor["MZ"] + isotopic_delta_mass
-            candidate_upper_mass = isotope_mass * (1 + mz_error / 1000000)
-            candidate_lower_mass = isotope_mass * (1 - mz_error / 1000000)
+            candidate_upper_mass = isotope_mass * (1 + mz_error / 1000000 / 2)
+            candidate_lower_mass = isotope_mass * (1 - mz_error / 1000000 / 2)
             try:
                 while full_anchors["MZ"][lower_index] <= candidate_lower_mass:
                     lower_index += 1
@@ -159,9 +159,11 @@ def findQuickIsotopes(
             a_ions = ions[full_anchor_ions[i]]
             matching_ions = ions[full_anchor_ions[lower_index: upper_index]]
             matches = np.abs(matching_ions["RT"] - a_ions["RT"]) <= rt_error
-            matches &= np.abs(matching_ions["DT"] - a_ions["DT"]) <= a_ions["DT"] * (dt_error / 1000000)
+            matches &= np.abs(matching_ions["DT"] - a_ions["DT"]) <= dt_error
             matches &= (matching_ions["LE"] == a_ions["LE"])
-            matches = np.flatnonzero(np.all(matches, axis=1))
+            matches = np.flatnonzero(
+                np.sum(matches, axis=1) >= parameters["MINIMUM_OVERLAP"][-1]
+            )
             if len(matches) == 1:
                 isotopic_pairs.append(
                     (
@@ -173,7 +175,7 @@ def findQuickIsotopes(
         isotopic_pairs = selected[np.array(isotopic_pairs)]
         if save:
             src.io.saveArray(
-                isotopic_pairs,
+                anchors[isotopic_pairs],
                 "PSEUDO_ISOTOPIC_PAIRS_FILE_NAME",
                 parameters,
                 log
@@ -203,9 +205,15 @@ def estimateAlignmentParameters(
         ]
         return anchor_alignment_parameters
     with log.newSection("Estimating alignment parameters"):
-        percentile_limit = int(
-            50 + 50 * parameters["ANCHOR_ALIGNMENT_PERCENTILE_THRESHOLD"]
+        quick_isotopic_pairs = np.concatenate(
+            [
+                quick_isotopic_pairs,
+                quick_isotopic_pairs[:, ::-1]
+            ]
         )
+        # percentile_limit = int(
+        #     50 + 50 * parameters["ANCHOR_ALIGNMENT_PERCENTILE_THRESHOLD"]
+        # )
         deviation_factor = parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"]
         #     ptps = np.ptp(estimation_anchors[attribute], axis=1)
         #     if attribute in parameters["RELATIVE_ATTRIBUTES"]:
@@ -220,10 +228,15 @@ def estimateAlignmentParameters(
             "DT",
             "RT",
         ]:
-            ptps = np.ptp(matched_isotopes[attribute], axis=1)
+            # ptps = np.ptp(matched_isotopes[attribute], axis=1)
+            # if attribute in parameters["RELATIVE_ATTRIBUTES"]:
+            #     ptps *= 1000000 / np.min(matched_isotopes[attribute], axis=1)
+            # ptp_limit = list(np.percentile(ptps, percentile_limit, axis=0) * deviation_factor)
+            ptps = np.diff(matched_isotopes[attribute], axis=1).squeeze()
             if attribute in parameters["RELATIVE_ATTRIBUTES"]:
                 ptps *= 1000000 / np.min(matched_isotopes[attribute], axis=1)
-            ptp_limit = list(np.percentile(ptps, percentile_limit, axis=0) * deviation_factor)
+            attribute_std = np.std(ptps, axis=0)
+            ptp_limit = list(attribute_std * deviation_factor)
             # ptp_limit = list(np.percentile(ptps, percentile_limit, axis=0))
             alignment_parameters[attribute] = ptp_limit
             worst_sample = np.argmax(ptp_limit)
@@ -324,9 +337,10 @@ def findQuickFragmentPairs(
 
 def calibrateChannelDriftShift(
     ions,
-    le_he_pairs,
     anchor_ions,
     anchors,
+    ion_alignment_parameters,
+    anchor_alignment_parameters,
     parameters,
     log,
     save=True
@@ -340,6 +354,15 @@ def calibrateChannelDriftShift(
         ratio = x / y
         return size_param * size + angle_param * angle + ratio_param * ratio + constant
     if not parameters["HE_ONLY"]:
+        le_he_pairs = src.aggregates.findQuickFragmentPairs(
+            ions,
+            anchors,
+            anchor_ions,
+            ion_alignment_parameters,
+            anchor_alignment_parameters,
+            parameters,
+            log
+        )
         with log.newSection("Calibrating aggregate ions channel dts"):
             alldata = np.stack([ions["DT"], ions["CALIBRATED_MZ"]])
             shift_parameters = []
@@ -459,7 +482,7 @@ def __multiprocessedDetectAnchorNeighbors(kwargs):
     sample_rts = kwargs['sample_rts']
     parameters = kwargs["parameters"]
     neighbor_all_channels = parameters['NEIGHBOR_ALL_CHANNELS']
-    dt_ppm_error = alignment_parameters["DT"]
+    dt_error = alignment_parameters["DT"]
     rt_error = alignment_parameters["RT"]
     minimum_hits = np.array(parameters["MINIMUM_OVERLAP"])
     selected_anchors = in_queue.get()
@@ -493,10 +516,8 @@ def __multiprocessedDetectAnchorNeighbors(kwargs):
                 ion_neighbors = ion_neighbors[ions["LE"][ion_neighbors] == ion["LE"]]
             ion_neighbor_dts = ions["SHIFTED_DT"][ion_neighbors]
             ion_neighbors = ion_neighbors[
-                (np.abs(ion_neighbor_dts - ion_dt) * 1000000) <= (
-                    np.minimum(
-                        ion_neighbor_dts, ion_dt
-                    ) * dt_ppm_error[ion_sample] * (
+                np.abs(ion_neighbor_dts - ion_dt) <= (
+                    dt_error[ion_sample] * (
                         1 + (ions["LE"][ion_neighbors] != ion["LE"])
                     )
                 )
@@ -890,9 +911,6 @@ def findFragmentPrecursors(
                         np.abs(
                             candidate_dt_differences - anchor["SHIFTED_DT"]
                             # (candidate_dt_differences - anchor["SHIFTED_DT"]) - dt_center
-                        ) / np.maximum(
-                            candidate_dt_differences,
-                            anchor["SHIFTED_DT"]
                         )
                     ) < max_dt_difference
                     filtered_precursors = candidate_precursor_anchors[good_candidates]
