@@ -17,11 +17,29 @@ from matplotlib.widgets import Slider, RadioButtons, Button
 
 class Browser(object):
 
-    def __init__(self, parameters, *args, **kwargs):
-        # TODO remove log?
+    def __init__(self, parameters, **kwargs):
         self.parameters = parameters
         self.log = src.io.Log(self.parameters["LOG_FILE_NAME"][:-4] + "_browser.txt")
         self.importData(**kwargs)
+        self.initWindows(**kwargs)
+        # self.setInitGUIParameters(**kwargs)
+
+    def initWindows(self, **kwargs):
+        plt.ion()
+        fig, tmp = plt.subplots()
+        tmp.axis("off")
+        self.axes = {
+            "scatter": plt.axes([0.3, 0.35, 0.65, 0.6]),
+            "line": plt.axes([0.05, 0.35, 0.2, 0.6]),
+            "fdr_slider": plt.axes([0.3, 0.05, 0.1, 0.05]),
+            "min_rep_slider": plt.axes([0.3, 0.15, 0.1, 0.05]),
+            "max_rep_slider": plt.axes([0.3, 0.25, 0.1, 0.05]),
+            "label_radio": plt.axes([0.45, 0.05, 0.1, 0.1]),
+            "edge_radio": plt.axes([0.45, 0.05, 0.1, 0.1]),
+        }
+        # self.initScatter(**kwargs)
+        # self.initIons(**kwargs)
+        # self.initButtons(**kwargs)
 
     def importData(self, **kwargs):
         if "aggregates" in kwargs:
@@ -61,37 +79,79 @@ class Browser(object):
                 "ANCHOR_PEPTIDE_MATCH_COUNTS_FILE_NAME",
                 self.parameters,
             )
-        self.proteins, self.total_protein_sequence, self.ptms, self.ptm_matrix = src.peptides.importProteinsAndPtms(
-            self.parameters,
-            self.log
-        )
-        self.peptides, self.peptide_index_matrix, self.digestion_matrix = src.peptides.digestProteins(
-            self.proteins,
-            self.total_protein_sequence,
-            self.ptm_matrix,
-            self.parameters,
-            self.log
-        )
-        self.percolated_annotations = pd.read_csv(
-            self.parameters["PERCOLATOR_TARGET_PIMS"],
-            delimiter="\t"
-        )
-        self.percolated_fdrs = self.percolated_annotations.values[:, 2]
-        self.percolated_anchors, self.percolated_peptides = self.anchor_peptide_match_counts.nonzero()
+        # self.proteins, self.total_protein_sequence, self.ptms, self.ptm_matrix = src.peptides.importProteinsAndPtms(
+        #     self.parameters,
+        #     self.log
+        # )
+        # self.peptides, self.peptide_index_matrix, self.digestion_matrix = src.peptides.digestProteins(
+        #     self.proteins,
+        #     self.total_protein_sequence,
+        #     self.ptm_matrix,
+        #     self.parameters,
+        #     self.log
+        # )
+        # self.percolated_annotations = pd.read_csv(
+        #     self.parameters["PERCOLATOR_TARGET_PIMS"],
+        #     delimiter="\t"
+        # )
+        # self.percolated_fdrs = self.percolated_annotations.values[:, 2]
+        # self.percolated_anchors, self.percolated_peptides = self.anchor_peptide_match_counts.nonzero()
 
-    def plot_bg_nx(self):
-        norm = mpl.colors.Normalize(
+    def setInitGUIParameters(self, **kwargs):
+        self.SELECTED_ANCHORS = []
+        self.LOG_FDR = -2
+        self.MIN_REP_COUNT = self.parameters["SAMPLE_COUNT"]
+        self.MAX_REP_COUNT = self.parameters["SAMPLE_COUNT"]
+        self.NETWORK_VISIBLE = "None"
+        self.LABEL_SELECTION = "None"
+        self.ION_DIMENSION = "Logint"
+        self.SAMPLE = "Aggregate"
+
+    def updateVisibleNodes(self):
+        dt_low, dt_high = plt.ylim()
+        rt_low, rt_high = plt.xlim()
+        selection = self.anchors["ION_COUNT"] >= self.MIN_REP_COUNT
+        selection &= self.anchors["ION_COUNT"] <= self.MAX_REP_COUNT
+        selection &= self.anchors["DT"] <= dt_high
+        selection &= self.anchors["DT"] >= dt_low
+        selection &= self.anchors["RT"] <= rt_high
+        selection &= self.anchors["RT"] >= rt_low
+        self.visible_nodes = np.flatnonzero(selection)
+
+    def initScatter(**kwargs):
+        self.initNodes()
+        self.initSelectedNodes()
+        self.initAnnotatedNodes()
+        self.initEdges()
+        plt_fg = browser.plot_fg()
+
+    def initNodes(self):
+        self.background_nodes = scatter_ax.scatter(
+            self.anchors["RT"][selection],
+            self.anchors["DT"][selection],
+            c="lightgrey",
+            marker=".",
+            # s=anchors["ION_COUNT"][selection]
+        )
+
+    def initNetworkLineCollection(self):
+        network_color_mapper = mpl.colors.Normalize(
             vmin=self.parameters["MINIMUM_OVERLAP"][0],
             vmax=self.parameters["SAMPLE_COUNT"]
         )
-        m = cm.ScalarMappable(norm=norm, cmap="RdYlGn")
-        lc = mc.LineCollection([], [])
-        bg_nx_lc = ax.add_collection(lc)
+        self.network_color_mapper = cm.ScalarMappable(norm=network_color_mapper, cmap="RdYlGn")
+        network_line_collection = mc.LineCollection([], [])
+        self.network_line_collection = scatter_ax.add_collection(network_line_collection)
+
+    def initButtons(**kwargs):
+        pass
+
+    def plot_bg_nx(self):
         def plot_bg_nx_after_init():
             selection = np.array([], dtype=np.int)
             if NETWORK_VISIBLE == "Selected":
-                if len(selected_anchors) > 0:
-                    selection = np.array(selected_anchors)
+                if len(self.SELECTED_ANCHORS) > 0:
+                    selection = np.array(self.SELECTED_ANCHORS)
             if NETWORK_VISIBLE == "All":
                 dt_low, dt_high = plt.ylim()
                 rt_low, rt_high = plt.xlim()
@@ -122,25 +182,25 @@ class Browser(object):
 
     def plot_anchor_selection(self):
         anchor_selection = ax.scatter(
-            self.anchors["RT"][selected_anchors],
-            self.anchors["DT"][selected_anchors],
+            self.anchors["RT"][self.SELECTED_ANCHORS],
+            self.anchors["DT"][self.SELECTED_ANCHORS],
             facecolor="None",
             edgecolor='black',
-            # s=anchors["ION_COUNT"][selected_anchors],
+            # s=anchors["ION_COUNT"][self.SELECTED_ANCHORS],
         )
         annotations = []
         def plot_anchor_selection_after_init():
             anchor_selection.set_offsets(
                 np.c_[
-                    self.anchors["RT"][selected_anchors],
-                    self.anchors["DT"][selected_anchors]
+                    self.anchors["RT"][self.SELECTED_ANCHORS],
+                    self.anchors["DT"][self.SELECTED_ANCHORS]
                 ]
             )
-            # ax.annotate(anchors["MZ"][selected_anchors], (anchors["RT"][selected_anchors], anchors["DT"][selected_anchors]))
+            # ax.annotate(anchors["MZ"][self.SELECTED_ANCHORS], (anchors["RT"][self.SELECTED_ANCHORS], anchors["DT"][self.SELECTED_ANCHORS]))
             for anchor_index in annotations:
                 anchor_index.remove()
             del annotations[:]
-            for anchor_index in selected_anchors:
+            for anchor_index in self.SELECTED_ANCHORS:
                 rt = self.anchors["RT"][anchor_index]
                 dt = self.anchors["DT"][anchor_index]
                 if LABEL_SELECTION == "m/z":
@@ -163,15 +223,6 @@ class Browser(object):
         return plot_anchor_selection_after_init
 
     def plot_bg(self):
-        selection = self.anchors["ION_COUNT"] >= MIN_REP_COUNT
-        selection &= self.anchors["ION_COUNT"] <= MAX_REP_COUNT
-        bg_sc = ax.scatter(
-            self.anchors["RT"][selection],
-            self.anchors["DT"][selection],
-            c="lightgrey",
-            marker=".",
-            # s=anchors["ION_COUNT"][selection]
-        )
         def plot_bg_after_init():
             selection = self.anchors["ION_COUNT"] >= MIN_REP_COUNT
             selection &= self.anchors["ION_COUNT"] <= MAX_REP_COUNT
@@ -259,7 +310,7 @@ class Browser(object):
             for i in plots:
                 i.remove()
             del plots[:]
-            for anchor_index in selected_anchors:
+            for anchor_index in self.SELECTED_ANCHORS:
                 selected_ions = self.anchor_ions[anchor_index].data
                 new_plot, = ax_intensities.plot(
                     self.ions["SAMPLE"][selected_ions],
@@ -295,209 +346,8 @@ class Browser(object):
         return plot_intensities_after_init
 
 
+
+
 parameter_file_name = "data/test/parameters.json"
 parameters = src.parameters.importParameterDictFromJSON(parameter_file_name)
 browser = Browser(parameters)
-
-selected_anchors = []
-LOG_FDR = -2
-MIN_REP_COUNT = parameters["SAMPLE_COUNT"]
-MAX_REP_COUNT = parameters["SAMPLE_COUNT"]
-BG_NX_MIN_OVERLAP = parameters["MINIMUM_OVERLAP"][0]
-BG_NX_MAX_OVERLAP = parameters["MINIMUM_OVERLAP"][0]
-NETWORK_VISIBLE = "None"
-LABEL_SELECTION = "None"
-
-
-plt.ion()
-
-bottom_space = 0.3
-button_count = 5
-axcolor = 'lightgoldenrodyellow'
-fig, ax = plt.subplots()
-ax.axis("off")
-plot_width = parameters["PLOT_WIDTH"]
-plot_height = parameters["PLOT_HEIGHT"]
-plt.get_current_fig_manager().resize(
-    width=plot_width,
-    height=plot_height
-)
-
-
-MIN_REP_COUNT_AX = plt.axes([0.65, bottom_space / button_count, 0.3, bottom_space / (button_count + 1)], facecolor=axcolor)
-MAX_REP_COUNT_AX = plt.axes([0.65, 2 * bottom_space / button_count, 0.3, bottom_space / (button_count + 1)], facecolor=axcolor)
-# BG_NX_MIN_OVERLAP_AX = plt.axes([0.5, 3 * bottom_space / button_count, 0.45, bottom_space / (button_count + 1)], facecolor=axcolor)
-# BG_NX_MAX_OVERLAP_AX = plt.axes([0.5, 4 * bottom_space / button_count, 0.45, bottom_space / (button_count + 1)], facecolor=axcolor)
-LOG_FDR_AX = plt.axes([0.65, 3 * bottom_space / button_count, 0.3, bottom_space / (button_count + 1)], facecolor=axcolor)
-
-MIN_REP_COUNT_SLIDER = Slider(MIN_REP_COUNT_AX, "MIN_REP_COUNT", parameters["SIGNAL_COUNT_THRESHOLD"], parameters["SAMPLE_COUNT"], MIN_REP_COUNT, valstep=1)
-MAX_REP_COUNT_SLIDER = Slider(MAX_REP_COUNT_AX, "MAX_REP_COUNT", parameters["SIGNAL_COUNT_THRESHOLD"], parameters["SAMPLE_COUNT"], MAX_REP_COUNT, valstep=1)
-# BG_NX_MIN_OVERLAP_SLIDER = Slider(BG_NX_MIN_OVERLAP_AX, "BG_NX_MIN_OVERLAP", parameters["MINIMUM_OVERLAP"][0], parameters["SAMPLE_COUNT"], BG_NX_MIN_OVERLAP, valstep=1)
-# BG_NX_MAX_OVERLAP_SLIDER = Slider(BG_NX_MAX_OVERLAP_AX, "BG_NX_MAX_OVERLAP", parameters["MINIMUM_OVERLAP"][0], parameters["SAMPLE_COUNT"], BG_NX_MAX_OVERLAP, valstep=1)
-LOG_FDR_SLIDER = Slider(LOG_FDR_AX, "LOG_FDR", -5, 0, valinit=LOG_FDR, valstep=0.01, valfmt="%1.3f")
-
-
-ax_network = plt.axes(
-    [
-        0.45,
-        bottom_space / button_count,
-        0.1,
-        (2 * bottom_space / button_count + bottom_space / (button_count + 1)) / 2
-    ],
-    facecolor=axcolor
-)
-network_radio = RadioButtons(ax_network, ('None', 'Selected', 'All'), active=0)
-
-
-def update_network_plot(label):
-    global NETWORK_VISIBLE
-    NETWORK_VISIBLE = label
-    plt_bg_nx()
-
-
-network_radio.on_clicked(update_network_plot)
-
-ax_label_selection = plt.axes(
-    [
-        0.45,
-        bottom_space / button_count + (2 * bottom_space / button_count + bottom_space / (button_count + 1)) / 2,
-        0.1,
-        (2 * bottom_space / button_count + bottom_space / (button_count + 1)) / 2
-    ],
-    facecolor=axcolor
-)
-label_selection_radio = RadioButtons(ax_label_selection, ('None', 'm/z', 'Peptide'), active=0)
-
-
-def update_label_selection_plot(label):
-    global LABEL_SELECTION
-    LABEL_SELECTION = label
-    plt_anchor_selection()
-    plt_intensities()
-
-
-label_selection_radio.on_clicked(update_label_selection_plot)
-
-ax_expand_neighbors = plt.axes([0.3, 3 * bottom_space / button_count, 0.1, bottom_space / (button_count + 1)], facecolor=axcolor)
-neighbor_button = Button(ax_expand_neighbors, 'Expand neighbors', color=axcolor, hovercolor='0.975')
-
-
-def expand_neighbors(val):
-    selection = browser.anchors["ION_COUNT"] >= MIN_REP_COUNT
-    selection &= browser.anchors["ION_COUNT"] <= MAX_REP_COUNT
-    dt_low, dt_high = plt.ylim()
-    rt_low, rt_high = plt.xlim()
-    selection &= browser.anchors["DT"] <= dt_high
-    selection &= browser.anchors["DT"] >= dt_low
-    selection &= browser.anchors["RT"] <= rt_high
-    selection &= browser.anchors["RT"] >= rt_low
-    selection = np.nonzero(selection)
-    n = np.unique(browser.neighbors[selected_anchors].indices)
-    n = n[np.isin(n, selection)]
-    for anchor_ind in n:
-        if anchor_ind not in selected_anchors:
-            selected_anchors.append(anchor_ind)
-    # print("Peptides: ", np.unique(anchor_peptide_match_counts[selected_anchors].indices, return_counts=True))
-    plt_bg_nx()
-    plt_anchor_selection()
-    plt_intensities()
-
-
-neighbor_button.on_clicked(expand_neighbors)
-
-ax_refresh = plt.axes([0.3, bottom_space / button_count, 0.1, bottom_space / (button_count + 1)], facecolor=axcolor)
-refresh_button = Button(ax_refresh, 'Refresh', color=axcolor, hovercolor='0.975')
-
-
-def refresh(val):
-    global selected_anchors
-    selection = browser.anchors["ION_COUNT"] >= MIN_REP_COUNT
-    selection &= browser.anchors["ION_COUNT"] <= MAX_REP_COUNT
-    dt_low, dt_high = plt.ylim()
-    rt_low, rt_high = plt.xlim()
-    selection &= browser.anchors["DT"] <= dt_high
-    selection &= browser.anchors["DT"] >= dt_low
-    selection &= browser.anchors["RT"] <= rt_high
-    selection &= browser.anchors["RT"] >= rt_low
-    selection = np.nonzero(selection)
-    selected_anchors = [selected_anchors[i] for i in np.flatnonzero(np.isin(selected_anchors, selection))]
-    plt_bg_nx()
-    plt_bg()
-    plt_fg()
-    plt_anchor_selection()
-    plt_intensities()
-
-
-refresh_button.on_clicked(refresh)
-
-ax_clear = plt.axes([0.3, 2 * bottom_space / button_count, 0.1, bottom_space / (button_count + 1)], facecolor=axcolor)
-clear_button = Button(ax_clear, 'Clear selection', color=axcolor, hovercolor='0.975')
-
-
-def clear_selection(val):
-    del selected_anchors[:]
-    plt_bg_nx()
-    plt_anchor_selection()
-    plt_intensities()
-
-
-clear_button.on_clicked(clear_selection)
-
-
-ax_intensities = plt.axes([0.1, bottom_space, 0.15, 0.95 - bottom_space])
-ax = plt.axes([0.3, bottom_space, 0.65, 0.95 - bottom_space])
-plt_bg_nx = browser.plot_bg_nx()
-plt_bg = browser.plot_bg()
-plt_fg = browser.plot_fg()
-plt_anchor_selection = browser.plot_anchor_selection()
-
-
-def anchors_update(val):
-    global MIN_REP_COUNT
-    global MAX_REP_COUNT
-    global LOG_FDR
-    MIN_REP_COUNT = MIN_REP_COUNT_SLIDER.val
-    MAX_REP_COUNT = MAX_REP_COUNT_SLIDER.val
-    LOG_FDR = LOG_FDR_SLIDER.val
-    refresh(None)
-
-
-MIN_REP_COUNT_SLIDER.on_changed(anchors_update)
-MAX_REP_COUNT_SLIDER.on_changed(anchors_update)
-LOG_FDR_SLIDER.on_changed(anchors_update)
-
-
-def onclick(event):
-    if not event.dblclick:
-        return
-    rt = event.xdata
-    dt = event.ydata
-    selection = browser.anchors["ION_COUNT"] >= MIN_REP_COUNT
-    selection &= browser.anchors["ION_COUNT"] <= MAX_REP_COUNT
-    dt_low, dt_high = plt.ylim()
-    rt_low, rt_high = plt.xlim()
-    selection &= browser.anchors["DT"] <= dt_high
-    selection &= browser.anchors["DT"] >= dt_low
-    selection &= browser.anchors["RT"] <= rt_high
-    selection &= browser.anchors["RT"] >= rt_low
-    rt_distance = (browser.anchors["RT"][selection] - rt) / (rt_high - rt_low)
-    dt_distance = (browser.anchors["DT"][selection] - dt) / (dt_high - dt_low)
-    distance = np.sqrt(rt_distance**2 + dt_distance**2)
-    min_distance_ind = np.argmin(distance)
-    anchor_ind = np.flatnonzero(selection)[min_distance_ind]
-    if event.key != "control":
-        del selected_anchors[:]
-    if anchor_ind in selected_anchors:
-        sel_i = selected_anchors.index(anchor_ind)
-        del selected_anchors[sel_i]
-    else:
-        selected_anchors.append(anchor_ind)
-    # print("Peptides: ", np.unique(anchor_peptide_match_counts[selected_anchors].indices, return_counts=True))
-    plt_bg_nx()
-    plt_anchor_selection()
-    plt_intensities()
-
-
-plt_intensities = browser.plot_intensities()
-
-ind = fig.canvas.mpl_connect('button_press_event', onclick)

@@ -15,7 +15,7 @@ from matplotlib import collections as mc
 from matplotlib.widgets import Slider, RadioButtons, Button
 
 
-parameter_file_name = "data/pharmafluidics/parameters.json"
+parameter_file_name = "data/ecoli_sonar/parameters_base.json"
 # parameter_file_name = "data/ecoli_swath/parameters_manual.json"
 parameters = src.parameters.importParameterDictFromJSON(parameter_file_name)
 log = src.io.Log(parameters["LOG_FILE_NAME"][:-4] + "_interactive.txt")
