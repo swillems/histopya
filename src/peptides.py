@@ -554,12 +554,14 @@ def __calculateYMRs(
     return masses
 
 
-def getSequenceFromIndex(
+def getPeptideSequenceFromIndex(
     peptide_index,
     peptides,
     peptide_index_matrix,
     total_protein_sequence
 ):
+    if peptide_index == -1:
+        return ""
     peptide_start_index = peptide_index_matrix.indices[
         peptide_index_matrix.indptr[peptide_index]
     ]
@@ -567,6 +569,55 @@ def getSequenceFromIndex(
         peptide_start_index: peptide_start_index + peptides[peptide_index]["SIZE"]
     ]
     return peptide_sequence
+
+
+def getPeptideSequences(
+    peptide_indices,
+    peptides,
+    peptide_index_matrix,
+    total_protein_sequence
+):
+    return np.array(
+        [
+            getPeptideSequenceFromIndex(
+                peptide_index,
+                peptides,
+                peptide_index_matrix,
+                total_protein_sequence
+            ) for peptide_index in peptide_indices
+        ],
+    )
+
+
+def getProteinAccessionFromIndex(
+    peptide_index,
+    peptides,
+    proteins
+):
+    if peptide_index == -1:
+        return ""
+    protein_index = peptides[peptide_index]["PROTEIN"]
+    if protein_index != -1:
+        protein_string = proteins[protein_index]["ID"]
+    else:
+        protein_string = "Ambiguous"
+    return protein_string
+
+
+def getProteinAccessions(
+    peptide_indices,
+    peptides,
+    proteins
+):
+    return np.array(
+        [
+            getProteinAccessionFromIndex(
+                peptide_index,
+                peptides,
+                proteins
+            ) for peptide_index in peptide_indices
+        ],
+    )
 
 
 if __name__ == '__main__':

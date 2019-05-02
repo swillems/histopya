@@ -137,7 +137,7 @@ annotation_data = src.aggregates.writePercolatorFile(
 
 
 
-sample_types = "swath"
+sample_types = "tenzer"
 
 if sample_types == "in_house":
     conditions = {
@@ -210,6 +210,37 @@ anchors_per_condition["QC"] = {
 }
 
 
+
+plt.show(
+    [
+        plt.boxplot(
+            [
+                np.log2(
+                    anchors_per_condition["QC"]["INTENSITY"][
+                        anchors["ION_COUNT"] == i
+                    ]
+                ) for i in range(
+                    1,
+                    parameters["SAMPLE_COUNT"] + 1
+                )
+            ]
+        ),
+        plt.xlabel("Aggregate ion count"),
+        plt.ylabel("Average log2(intensity)"),
+    ]
+)
+
+plt.show(
+    [
+        plt.plot(
+            *np.unique(
+                anchors["ION_COUNT"],
+                return_counts=True
+            )
+        ),
+        plt.xlim((1, parameters["SAMPLE_COUNT"] + 1))
+    ]
+)
 
 # plt.show(
 #     plt.boxplot(
@@ -420,12 +451,31 @@ for i in range(2, parameters["SAMPLE_COUNT"] + 1):
     print("******************")
 
 
-plt.plot(eco1, marker="o", linestyle="-", c="red")
-plt.plot(hum1, marker="o", linestyle="-", c="grey")
-plt.plot(yea1, marker="o", linestyle="-", c="green")
-plt.plot(eco2, marker=".", linestyle=":", c="red")
-plt.plot(hum2, marker=".", linestyle=":", c="grey")
-plt.plot(yea2, marker=".", linestyle=":", c="green")
+e_ex, = plt.plot(eco1, marker="o", linestyle="-", c="red")
+h_ex, = plt.plot(hum1, marker="o", linestyle="-", c="grey")
+y_ex, = plt.plot(yea1, marker="o", linestyle="-", c="green")
+e_th, = plt.plot(eco2, marker=".", linestyle=":", c="red")
+h_th, = plt.plot(hum2, marker=".", linestyle=":", c="grey")
+y_th, = plt.plot(yea2, marker=".", linestyle=":", c="green")
+plt.legend(
+    (
+        e_ex,
+        h_ex,
+        y_ex,
+        e_th,
+        h_th,
+        y_th
+    ), (
+        "Ecoli experimental",
+        "Human experimental",
+        "Yeast experimental",
+        "Ecoli theoretical",
+        "Human theoretical",
+        "Yeast theoretical"
+    )
+)
+plt.xlabel("Sample count")
+plt.ylabel("% correctly aligned")
 plt.show()
 
 
@@ -3389,3 +3439,100 @@ b = ions["CALIBRATED_RT"][a] - anchors["RT"][s].reshape(-1, 1)
 plt.show([[plt.plot(np.percentile(b[:,i],np.arange(101)),np.arange(101)),plt.axhline(50),plt.axvline(0)] for i in range(27)])
 # plt.show(plt.plot(b))
 # [plt.show(plt.plot(rts, b[:,i])) for i in range(parameters["SAMPLE_COUNT"])]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+percolated_annotations = pd.read_csv(
+    parameters["PERCOLATOR_TARGET_PIMS"],
+    delimiter="\t"
+)
+percolated_fdrs = percolated_annotations.values[:, 2]
+percolated_anchors, percolated_peptides = anchor_peptide_match_counts.nonzero()
+significant_pims = percolated_annotations.values[
+    percolated_fdrs <= 0.01,
+    0
+].astype(int)
+selected_anchor_indices = percolated_anchors[significant_pims]
+for anchor_index in selected_anchor_indices[:1]:
+    # anchor_index = anchor_indices[selected_anchor_index]
+    anchor_candidates = fragment_peptide_indices[
+        slice(*anchor_boundaries[anchor_index])
+    ]
+    anchor_neighbors = neighbors.indices[
+        neighbors.indptr[anchor_index]: neighbors.indptr[anchor_index + 1]
+    ]
+    raw_neighbor_candidates = np.concatenate(
+        [
+            fragment_peptide_indices[
+                slice(*anchor_boundaries[n])
+            ] for n in anchor_neighbors
+        ]
+    )
+    neighbor_candidates = raw_neighbor_candidates[
+        np.isin(
+            raw_neighbor_candidates,
+            anchor_candidates
+        )
+    ]
+    candidates, candidate_counts = np.unique(
+        neighbor_candidates,
+        return_counts=True
+    )
+    counts, frequency = np.unique(
+        candidate_counts,
+        return_counts=True
+    )
+    if (len(frequency) <= 3):
+        continue
+    counts = np.concatenate([[0], counts])
+    frequency = np.concatenate(
+        [
+            [len(anchor_candidates)],
+            np.cumsum(frequency[::-1])[::-1]
+        ]
+    )
+    ransac = linear_model.RANSACRegressor()
+    try:
+        tmp = ransac.fit(
+            counts.reshape(-1, 1)[:-1],
+            np.log(frequency).reshape(-1, 1)[:-1]
+        )
+    except ValueError:
+        continue
+    score = -ransac.predict(counts[-1])[0][0]
+    plt.bar(counts, frequency)
+    plt.scatter(counts, frequency, marker=".")
+    plt.xlabel("#Peptides with fragment count")
+    plt.ylabel("Frequency")
+    plt.show()
+    plt.scatter(counts, np.log(frequency), marker=".")
+    plt.plot(
+        [
+            0,
+            counts[-1]
+        ],
+        [
+            ransac.predict(counts[0])[0][0],
+            ransac.predict(counts[-1])[0][0]
+        ]
+    )
+    plt.xlabel("#Peptides with fragment count")
+    plt.ylabel("Log frequency")
+    plt.title("Score={}".format(score))
+    plt.show()

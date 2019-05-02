@@ -18,6 +18,9 @@
     "ANCHOR_MINIMUM_OVERLAP_FILE_NAME": "[OUTPUT_PATH]anchor_minimum_overlap.npy",
     "APEX_COLUMNS": {
         "DT": 8,
+        "ERR_DT": 10,
+        "ERR_RT": 13,
+        "ERR_MZ": 12,
         "FUNCTION": 0,
         "INTENSITY": 5,
         "MZ": 2,

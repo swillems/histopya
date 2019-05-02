@@ -487,6 +487,7 @@ def detectAllIonNeighbors(
                 'upper_mz_border': upper_mz_border,
                 'dt_error': ion_alignment_parameters["CALIBRATED_DT"],
                 'rt_error': ion_alignment_parameters["CALIBRATED_RT"],
+                'parameters': parameters
             },
             process_count=process_count,
         ):
@@ -517,6 +518,7 @@ def __multiprocessedDetectIonNeighbors(kwargs):
     upper_mz_border = kwargs['upper_mz_border']
     dt_error = kwargs['dt_error']
     rt_error = kwargs['rt_error']
+    parameters = kwargs['parameters']
     selected_ions = in_queue.get()
     neighbors = scipy.sparse.dok_matrix(
         (len(ions), len(ions)),
@@ -547,6 +549,31 @@ def __multiprocessedDetectIonNeighbors(kwargs):
                 ions["SAMPLE"][candidate_indices] != ion["SAMPLE"]
             )
         ]
+        # candidate_ions = ions[candidate_indices]
+        # rt_distances = (
+        #     candidate_ions["CALIBRATED_RT"] - ion["CALIBRATED_RT"]
+        # ) / (
+        #     rt_error / parameters["ION_ALIGNMENT_DEVIATION_FACTOR"]
+        # )
+        # dt_distances = (
+        #     candidate_ions["CALIBRATED_DT"] - ion["CALIBRATED_DT"]
+        # ) / (
+        #     dt_error / parameters["ION_ALIGNMENT_DEVIATION_FACTOR"]
+        # )
+        # # mz_distances = ( # TODO
+        # #     (
+        # #         candidate_ions["CALIBRATED_MZ"] - ion["CALIBRATED_MZ"]
+        # #     ) / (
+        # #         ion["CALIBRATED_MZ"] / parameters["ION_ALIGNMENT_DEVIATION_FACTOR"]
+        # #     )
+        # # )
+        # mz_distances = 1
+        # mahalanobis_distance = np.sqrt(
+        #     rt_distances**2 + dt_distances**2 + mz_distances**2
+        # )
+        # candidate_indices = candidate_indices[
+        #     mahalanobis_distance < parameters["ION_ALIGNMENT_DEVIATION_FACTOR"]
+        # ]
         neighbors[ion_index, candidate_indices] = True
     out_queue.put(neighbors.tocsr())
     out_queue.put(None)
