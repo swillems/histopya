@@ -615,8 +615,38 @@ def matchAnchorsToFragments(
     return anchor_boundaries, fragment_peptide_indices, fragment_indices
 
 
+def matchAnchorsToFragmentsMS2PIP(
+    fragments,
+    anchors,
+    base_mass_dict,
+    parameters,
+    log
+):
+    with log.newSection("Matching aggregates to singly-charged fragments"):
+        fragment_order = np.argsort(fragments["MZ"])
+        anchor_order = np.argsort(anchors["MZ"])
+        anchor_boundaries = np.zeros((len(anchors), 2), dtype=np.int)
+        anchor_boundaries[anchor_order] = __matchMasses(
+            fragments["MZ"][fragment_order],
+            anchors["MZ"][anchor_order],
+            # TODO id_ppm calibration
+            parameters["IDENTIFICATION_PPM"],
+            log
+        )
+        fragment_count = np.diff(anchor_boundaries, axis=1)
+        log.printMessage(
+            "Found {} fragment explanations for {} anchors".format(
+                np.sum(fragment_count),
+                np.sum(fragment_count > 0)
+            )
+        )
+    return anchor_boundaries, fragment_order
+
+
+
 def __matchMasses(target_mzs, query_mzs, ppm, log):
-    log.printMessage("Matching masses")
+    if log is not None:
+        log.printMessage("Matching masses")
     lower_boundaries = np.searchsorted(
         target_mzs,
         query_mzs * (1 - ppm / 1000000),

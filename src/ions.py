@@ -87,6 +87,9 @@ def __mergeIonArraysIntoStructuredArray(ions, column_names, log):
             ("MZ", np.float),
             ("RT", np.float),
             ("DT", np.float),
+            ("MZ_ERROR", np.float),
+            ("RT_ERROR", np.float),
+            ("DT_ERROR", np.float),
             ("INTENSITY", np.float),
             ("CALIBRATED_MZ", np.float),
             ("CALIBRATED_RT", np.float),
@@ -101,6 +104,9 @@ def __mergeIonArraysIntoStructuredArray(ions, column_names, log):
     structured_ions["MZ"] = ions[:, column_names.index("MZ")]
     structured_ions["RT"] = ions[:, column_names.index("RT")]
     structured_ions["DT"] = ions[:, column_names.index("DT")]
+    structured_ions["MZ_ERROR"] = ions[:, column_names.index("MZ_ERROR")]
+    structured_ions["RT_ERROR"] = ions[:, column_names.index("RT_ERROR")]
+    structured_ions["DT_ERROR"] = ions[:, column_names.index("DT_ERROR")]
     structured_ions["INTENSITY"] = ions[:, column_names.index("INTENSITY")]
     structured_ions["CALIBRATED_RT"] = structured_ions["RT"]
     structured_ions["CALIBRATED_DT"] = structured_ions["DT"]
