@@ -3747,3 +3747,147 @@ with log.newSection("Creating percolator data"):
     )
 
 src.io.runPercolator(parameters, log)
+
+
+
+
+
+
+a, b = neighbors.nonzero()
+c = (
+    (ions["SAMPLE"][a] == 0) & (ions["SAMPLE"][b] == 1)
+)
+a_rt = ions["DT"][a[c]]
+b_rt = ions["DT"][b[c]]
+diff_rt = a_rt - b_rt
+order = np.argsort(a_rt)
+X = np.stack([a_rt[order], diff_rt[order]]).T
+from sklearn.neighbors import KDTree
+kdt = KDTree(X, leaf_size=30, metric='euclidean')
+# TODO Faster?: https://github.com/nmslib/hnswlib
+max_check = 10
+ind = kdt.query(X, k=max_check, return_distance=False)
+
+path_length = np.zeros(ind.shape[0], dtype=np.int)
+for i in np.flatnonzero(np.any(ind > 0, axis=1))[::-1]:
+    path_length[i] = np.max(path_length[ind[i]] + 1)
+
+idx = np.argmax(path_length)
+largest_path = [idx]
+while(path_length[idx] > 1):
+    s = ind[idx]
+    idx = s[np.argmax(path_length[s] == path_length[idx] - 1)]
+    largest_path.append(idx)
+
+
+def moving_average(a, n=1000):
+    result = np.cumsum(a, dtype=float)
+    return (result[n:] - result[:-n]) / n
+
+
+s = np.array(largest_path)
+tmp = plt.scatter(X[:, 0][::10], X[:, 1][::10], marker=".", c="grey")
+# tmp = plt.scatter(X[:, 0][s], X[:, 1][s], c="blue", marker=".")
+# tmp = plt.plot(
+#     moving_average(X[:, 0][s]),
+#     moving_average(X[:, 1][s]),
+#     c="red"
+# )
+plt.show()
+
+
+#
+# import sklearn.neighbors
+# n_neighbors = 1000
+# knn = sklearn.neighbors.KNeighborsRegressor(n_neighbors, weights='distance')
+# y_ = knn.fit(
+#     X[10**5:2*10**5, 0].reshape(-1, 1),
+#     X[10**5:2*10**5, 1].reshape(-1, 1)
+# ).predict(
+#     X[10**5:2*10**5, 0].reshape(-1, 1)
+# )
+#
+# tmp = plt.plot(
+#     moving_average(X[10**5:2*10**5, 0]),
+#     moving_average(y_.reshape(1,-1)),
+#     c="green"
+# )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+a, b = neighbors.nonzero()
+rtd = np.argsort(np.abs(ions["CALIBRATED_RT"][a] - ions["CALIBRATED_RT"][b]))
+dtd = np.argsort(np.abs(ions["CALIBRATED_DT"][a] - ions["CALIBRATED_DT"][b]))
+mzd = np.argsort(np.abs(ions["CALIBRATED_MZ"][a] - ions["CALIBRATED_MZ"][b]))
+dists = np.sqrt(rtd**2+dtd**2+mzd**2)
+order = np.argsort(dists)
+
+
+a_indices = a[order]
+b_indices = b[order]
+a_samples = ions["SAMPLE"][a_indices]
+b_samples = ions["SAMPLE"][b_indices]
+
+cluster_indices = np.zeros(len(ions), dtype=np.int)
+cluster_samples = np.zeros((len(ions), parameters["SAMPLE_COUNT"]), dtype=np.int)
+new_cluster = 0
+
+for a_index, b_index, a_sample, b_sample in zip(
+    a_indices,
+    b_indices,
+    a_samples,
+    b_samples,
+):
+    a_cluster = cluster_indices[a_index]
+    b_cluster = cluster_indices[b_index]
+    if a_cluster == 0:
+        if b_cluster == 0:
+            new_cluster += 1
+            cluster_samples[new_cluster, a_sample] = a_index
+            cluster_samples[new_cluster, b_sample] = b_index
+            cluster_indices[a_index] = new_cluster
+            cluster_indices[b_index] = new_cluster
+        else:
+            if cluster_samples[b_cluster, a_sample] == 0:
+                cluster_samples[b_cluster, a_sample] = a_index
+                cluster_indices[a_index] = b_cluster
+    else:
+        if b_cluster == 0:
+            if cluster_samples[a_cluster, b_sample] == 0:
+                cluster_samples[a_cluster, b_sample] = b_index
+                cluster_indices[b_index] = a_cluster
+        else:
+            for sample in np.flatnonzero(cluster_samples[a_cluster]):
+                if cluster_samples[b_cluster, sample] > 0:
+                    break
+            else:
+                for ion_index in cluster_a_samples[cluster_a_samples > 0]:
+                    cluster_indices[ion_index] = b_cluster
+                    ion_sample = ions["SAMPLE"][ion_index]
+                    cluster_samples[b_cluster, ion_sample] = ion_index
+
+
+
+# anch_sizes = np.unique(ions["AGGREGATE_INDEX"], return_counts=True)[1]
+# np.unique(anch_sizes, return_counts=True)
+cluster_sizes = np.unique(cluster_indices, return_counts=True)[1]
+np.unique(cluster_sizes, return_counts=True)

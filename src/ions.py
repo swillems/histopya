@@ -468,15 +468,26 @@ def detectAllIonNeighbors(
     ion_alignment_parameters,
     parameters,
     log,
-    save=False
+    save=False,
+    pre_sort=True,
+    trim=True
 ):
     with log.newSection("Calculating ion neighbors"):
-        ions = src.ions.sort(ions, "CALIBRATED_MZ", log)
+        if pre_sort:
+            ions = src.ions.sort(ions, "CALIBRATED_MZ", log)
+        log.printMessage("Connecting ions")
         process_count = parameters["CPU_COUNT"]
         upper_mz_border = np.searchsorted(
             ions["CALIBRATED_MZ"],
             ions["CALIBRATED_MZ"] * (
-                1 + ion_alignment_parameters["CALIBRATED_MZ"] / 1000000
+                # TODO
+                # 1 + ion_alignment_parameters["CALIBRATED_MZ"] / 1000000
+                # 1 + parameters["ION_ALIGNMENT_DEVIATION_FACTOR"] * ion_alignment_parameters["CALIBRATED_MZ"] / 1000000
+                1 + (
+                    parameters["ION_ALIGNMENT_DEVIATION_FACTOR"] * np.max(
+                        np.sqrt(2) * np.max(ions["MZ_ERROR"])
+                    ) / 1000000
+                )
             ),
             "right"
         )
@@ -508,12 +519,13 @@ def detectAllIonNeighbors(
                 parameters,
                 log
             )
-        ions = src.ions.trimNeighborsToAnchors(
-            ions,
-            neighbors,
-            parameters,
-            log
-        )
+        if trim:
+            ions = trimNeighborsToAnchors(
+                ions,
+                neighbors,
+                parameters,
+                log
+            )
     return ions, neighbors
 
 
@@ -535,14 +547,32 @@ def __multiprocessedDetectIonNeighbors(kwargs):
         upper_index = upper_mz_border[ion_index]
         candidate_indices = ion_index + 1 + np.flatnonzero(
             np.abs(
-                ions["CALIBRATED_RT"][ion_index + 1: upper_index] - ion["CALIBRATED_RT"]
-            ) <= rt_error
+                ions["CALIBRATED_MZ"][ion_index + 1: upper_index] - ion["CALIBRATED_MZ"]
+            ) * 1000000 <= parameters["ION_ALIGNMENT_DEVIATION_FACTOR"] * np.sqrt(
+                ions["MZ_ERROR"][ion_index + 1: upper_index]**2 + ion["MZ_ERROR"]**2
+            ) * ion["CALIBRATED_MZ"]
         )
+        # candidate_indices = candidate_indices[
+        #     np.flatnonzero(
+        #         np.abs(
+        #             ions["CALIBRATED_DT"][candidate_indices] - ion["CALIBRATED_DT"]
+        #         ) <= dt_error
+        #     )
+        # ]
         candidate_indices = candidate_indices[
             np.flatnonzero(
                 np.abs(
                     ions["CALIBRATED_DT"][candidate_indices] - ion["CALIBRATED_DT"]
-                ) <= dt_error
+                ) <= parameters["ION_ALIGNMENT_DEVIATION_FACTOR"] * np.sqrt(
+                    ions["DT_ERROR"][candidate_indices]**2 + ion["DT_ERROR"]**2
+                )
+            )
+        ]
+        candidate_indices = candidate_indices[
+            np.flatnonzero(
+                np.abs(
+                    ions["CALIBRATED_RT"][candidate_indices] - ion["CALIBRATED_RT"]
+                ) <= rt_error
             )
         ]
         candidate_indices = candidate_indices[
@@ -591,7 +621,7 @@ def trimNeighborsToAnchors(ions, neighbors, parameters, log, save=False):
         ion_samples = ions["SAMPLE"]
         process_count = parameters["CPU_COUNT"]
         log.printMessage("Making neighbors bi-directional")
-        neighbors += neighbors.T
+        neighbors = neighbors + neighbors.T
         log.printMessage("Connecting components")
         anchor_count, ion_labels = scipy.sparse.csgraph.connected_components(
             neighbors,

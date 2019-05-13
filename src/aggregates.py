@@ -483,7 +483,8 @@ def __multiprocessedDetectAnchorNeighbors(kwargs):
     parameters = kwargs["parameters"]
     neighbor_all_channels = parameters['NEIGHBOR_ALL_CHANNELS']
     dt_error = alignment_parameters["DT"]
-    rt_error = alignment_parameters["RT"]
+    # rt_error = alignment_parameters["RT"]
+    max_rt_error = np.max(ions["RT_ERROR"])
     minimum_hits = np.array(parameters["MINIMUM_OVERLAP"])
     selected_anchors = in_queue.get()
     neighbors = scipy.sparse.dok_matrix(
@@ -495,47 +496,79 @@ def __multiprocessedDetectAnchorNeighbors(kwargs):
             continue
         # if not anchors["LE"][anchor_index]:
         #     continue
-        coeluting_anchors = []
+        # coeluting_anchors = []
+        coeluting_anchors = np.zeros(anchor_index, dtype=np.int)
         for ion_index in anchor_ions[anchor_index].data:
             ion = ions[ion_index]
             ion_rt = ion["RT"]
-            ion_dt = ion["SHIFTED_DT"]
+            # ion_dt = ion["SHIFTED_DT"]
+            ion_dt = ion["DT"]
             ion_sample = ion["SAMPLE"]
+            rt_error = np.sqrt(ion["RT_ERROR"]**2 + max_rt_error**2)
             low_index = np.searchsorted(
                 sample_rts[ion_sample],
-                ion_rt - rt_error[ion_sample],
+                ion_rt - parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"] * rt_error,#[ion_sample],
                 "left"
             )
             high_index = np.searchsorted(
                 sample_rts[ion_sample],
-                ion_rt + rt_error[ion_sample],
+                ion_rt + parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"] * rt_error,#[ion_sample],
                 "right"
             )
             ion_neighbors = sample_rt_indices[ion_sample][low_index: high_index]
+            neighbor_dt_error = np.abs(
+                ions["DT"][ion_neighbors] - ion_dt
+            )
+            # TODO update parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"]
+            allowed_neighbor_dt_error = np.sqrt(
+                ion["DT_ERROR"]**2 + ions["DT_ERROR"][ion_neighbors]**2
+            ) * parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"]
+            ion_neighbors = ion_neighbors[
+                neighbor_dt_error < allowed_neighbor_dt_error
+            ]
+            ion_neighbors = ion_neighbors[
+                ions["AGGREGATE_INDEX"][ion_neighbors] < anchor_index
+            ]
             if not neighbor_all_channels:
                 ion_neighbors = ion_neighbors[ions["LE"][ion_neighbors] == ion["LE"]]
-            ion_neighbor_dts = ions["SHIFTED_DT"][ion_neighbors]
+            allowed_neighbor_rt_error = np.sqrt(
+                ion["RT_ERROR"]**2 + ions["RT_ERROR"][ion_neighbors]**2
+            ) * parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"]
+            neighbor_rt_error = np.abs(
+                ions["RT"][ion_neighbors] - ion_rt
+            )
             ion_neighbors = ion_neighbors[
-                np.abs(ion_neighbor_dts - ion_dt) <= (
-                    dt_error[ion_sample] * (
-                        1 + (ions["LE"][ion_neighbors] != ion["LE"])
-                    )
-                )
+                neighbor_rt_error < allowed_neighbor_rt_error
             ]
-            coeluting_anchors.append(ions["AGGREGATE_INDEX"][ion_neighbors])
-        try:
-            coeluting_anchors = np.hstack(coeluting_anchors)
-        except ValueError:
-            continue
-        coeluting_anchor_indices, coeluting_anchor_overlap_counts = np.unique(
-            coeluting_anchors[coeluting_anchors > anchor_index],
-            return_counts=True
-        )
-        candidate_indices = np.flatnonzero(
-            coeluting_anchor_overlap_counts > 1
-        )
-        coeluting_anchor_indices = coeluting_anchor_indices[candidate_indices]
-        coeluting_anchor_overlap_counts = coeluting_anchor_overlap_counts[candidate_indices]
+            # ion_neighbor_dts = ions["SHIFTED_DT"][ion_neighbors]
+            # ion_neighbors = ion_neighbors[
+            #     np.abs(ion_neighbor_dts - ion_dt) <= (
+            #         dt_error[ion_sample] * (
+            #             1 + (ions["LE"][ion_neighbors] != ion["LE"])
+            #         )
+            #     )
+            # ]
+            # coeluting_anchors.append(ions["AGGREGATE_INDEX"][ion_neighbors])
+            try:
+                coeluting_anchors[ions["AGGREGATE_INDEX"][ion_neighbors]] += 1
+            except IndexError:
+                print(ion_neighbors)
+                print(coeluting_anchors)
+        # try:
+        #     coeluting_anchors = np.hstack(coeluting_anchors)
+        # except ValueError:
+        #     continue
+        # coeluting_anchor_indices, coeluting_anchor_overlap_counts = np.unique(
+        #     coeluting_anchors[coeluting_anchors > anchor_index],
+        #     return_counts=True
+        # )
+        # candidate_indices = np.flatnonzero(
+        #     coeluting_anchor_overlap_counts > 1
+        # )
+        # coeluting_anchor_indices = coeluting_anchor_indices[candidate_indices]
+        # coeluting_anchor_overlap_counts = coeluting_anchor_overlap_counts[candidate_indices]
+        coeluting_anchor_indices = np.flatnonzero(coeluting_anchors > 1)
+        coeluting_anchor_overlap_counts = coeluting_anchors[coeluting_anchor_indices]
         reproducible_indices = np.flatnonzero(
             coeluting_anchor_overlap_counts >= minimum_hits[
                 np.diff(
