@@ -3891,3 +3891,95 @@ for a_index, b_index, a_sample, b_sample in zip(
 # np.unique(anch_sizes, return_counts=True)
 cluster_sizes = np.unique(cluster_indices, return_counts=True)[1]
 np.unique(cluster_sizes, return_counts=True)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Single sample co-elution
+sample_rt_indices = src.aggregates.__indexIonRT(
+    anchor_ions,
+    ions,
+    parameters,
+    log
+)
+sample_rts = [
+    ions["RT"][sample_rt_indices[i]] for i in range(
+        parameters["SAMPLE_COUNT"]
+    )
+]
+
+max_rt_error = np.max(ions["RT_ERROR"])
+sample_ions = [
+    np.flatnonzero(ions["SAMPLE"] == i) for i in range(
+        parameters["SAMPLE_COUNT"]
+    )
+]
+all_rt_errors = [
+    np.sqrt(
+        ions[sample]["RT_ERROR"]**2 + max_rt_error**2
+    ) for sample in sample_ions
+]
+low_indices = [
+    np.searchsorted(
+        sample_rts[sample],
+        ions["RT"][sample_ions[sample]] - parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"] * rt_errors,
+        "left"
+    ) for sample, rt_errors in enumerate(all_rt_errors)
+]
+high_indices = [
+    np.searchsorted(
+        sample_rts[sample],
+        ions["RT"][sample_ions[sample]] + parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"] * rt_errors,
+        "left"
+    ) for sample, rt_errors in enumerate(all_rt_errors)
+]
+
+counts = np.zeros((len(ions), parameters["SAMPLE_COUNT"]), dtype=np.int)
+for sample in range(parameters["SAMPLE_COUNT"]):
+    for ion_index, low_index, high_index in zip(
+        sample_ions[sample],
+        low_indices[sample],
+        high_indices[sample]
+    ):
+        ion = ions[ion_index]
+        ion_rt = ion["RT"]
+        ion_dt = ion["DT"]
+        ion_sample = ion["SAMPLE"]
+        ion_neighbors = sample_rt_indices[sample][low_index: high_index]
+        neighbor_dt_error = np.abs(
+            ions["DT"][ion_neighbors] - ion_dt
+        )
+        allowed_neighbor_dt_error = np.sqrt(
+            ion["DT_ERROR"]**2 + ions["DT_ERROR"][ion_neighbors]**2
+        ) * parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"]
+        neighbor_rt_error = np.abs(
+            ions["RT"][ion_neighbors] - ion_rt
+        )
+        allowed_neighbor_rt_error = np.sqrt(
+            ion["RT_ERROR"]**2 + ions["RT_ERROR"][ion_neighbors]**2
+        ) * parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"]
+        ion_neighbor_count = np.sum(
+            (
+                neighbor_rt_error < allowed_neighbor_rt_error
+            ) & (
+                neighbor_dt_error < allowed_neighbor_dt_error
+            )
+        )
+        counts[ion_index, sample] = ion_neighbor_count

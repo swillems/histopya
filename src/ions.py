@@ -28,6 +28,7 @@ def importAllFromCsv(parameters, log, save=False):
                     "parameters": parameters,
                     "column_indices": column_indices,
                     "rt_column": column_names.index("RT"),
+                    'le_column': column_names.index("FUNCTION"),
                     "in_queue": in_queue,
                     "log": log
                 },
@@ -35,11 +36,6 @@ def importAllFromCsv(parameters, log, save=False):
             )
         )
         ions = __mergeIonArraysIntoStructuredArray(ions, column_names, log)
-        if parameters["HE_ONLY"]:
-            if np.all(ions["LE"]):
-                ions["LE"] = False
-            else:
-                ions = ions[~ions["LE"]]
         if save:
             src.io.saveArray(ions, "RAW_IONS_FILE_NAME", parameters, log)
     return ions
@@ -51,13 +47,30 @@ def __multiprocessedImportIonsFromApexCsv(kwargs):
     parameters = kwargs['parameters']
     column_indices = kwargs['column_indices']
     rt_column = kwargs['rt_column']
+    le_column = kwargs['le_column']
     log = kwargs['log']
     sample_indices = in_queue.get()
     while sample_indices is not None:
         for sample_index in sample_indices:
             apex_file_name = parameters["APEX_FILE_NAMES"][sample_index]
-            ions = src.io.loadArrayFromCsv(apex_file_name, parameters, log=None)
-            ions = ions[:, column_indices]
+            ions = src.io.loadArrayFromCsv(
+                apex_file_name, parameters,
+                use_cols=column_indices,
+                log=None
+            )
+            # ions = ions[:, column_indices]
+            # if parameters["HE_ONLY"]:
+            #     le_ions = ions[le_column] == 2
+            #     if not np.all(le_ions):
+            #         ions[le_ions] = False
+            #     else:
+            #         ions = ions[~ions["LE"]]
+            if parameters["HE_ONLY"]:
+                le_ions = ions[:, le_column] == 1
+                if np.all(le_ions):
+                    ions[le_column] = 0
+                else:
+                    ions = ions[~le_ions]
             ions = ions[np.argsort(ions[:, rt_column])]
             sample_column = np.full(len(ions), sample_index).reshape((-1, 1))
             ions = np.concatenate([ions, sample_column], axis=1)
@@ -484,8 +497,8 @@ def detectAllIonNeighbors(
                 # 1 + ion_alignment_parameters["CALIBRATED_MZ"] / 1000000
                 # 1 + parameters["ION_ALIGNMENT_DEVIATION_FACTOR"] * ion_alignment_parameters["CALIBRATED_MZ"] / 1000000
                 1 + (
-                    parameters["ION_ALIGNMENT_DEVIATION_FACTOR"] * np.max(
-                        np.sqrt(2) * np.max(ions["MZ_ERROR"])
+                    parameters["ION_ALIGNMENT_DEVIATION_FACTOR"] * (
+                        np.sqrt(np.max(ions["MZ_ERROR"])**2 + ions["MZ_ERROR"]**2)
                     ) / 1000000
                 )
             ),
@@ -502,7 +515,7 @@ def detectAllIonNeighbors(
                 "in_queue": in_queue,
                 "ions": ions,
                 'upper_mz_border': upper_mz_border,
-                'dt_error': ion_alignment_parameters["CALIBRATED_DT"],
+                # 'dt_error': ion_alignment_parameters["CALIBRATED_DT"],
                 'rt_error': ion_alignment_parameters["CALIBRATED_RT"],
                 'parameters': parameters
             },
@@ -534,7 +547,7 @@ def __multiprocessedDetectIonNeighbors(kwargs):
     out_queue = kwargs['out_queue']
     ions = kwargs['ions']
     upper_mz_border = kwargs['upper_mz_border']
-    dt_error = kwargs['dt_error']
+    # dt_error = kwargs['dt_error']
     rt_error = kwargs['rt_error']
     parameters = kwargs['parameters']
     selected_ions = in_queue.get()
@@ -547,10 +560,8 @@ def __multiprocessedDetectIonNeighbors(kwargs):
         upper_index = upper_mz_border[ion_index]
         candidate_indices = ion_index + 1 + np.flatnonzero(
             np.abs(
-                ions["CALIBRATED_MZ"][ion_index + 1: upper_index] - ion["CALIBRATED_MZ"]
-            ) * 1000000 <= parameters["ION_ALIGNMENT_DEVIATION_FACTOR"] * np.sqrt(
-                ions["MZ_ERROR"][ion_index + 1: upper_index]**2 + ion["MZ_ERROR"]**2
-            ) * ion["CALIBRATED_MZ"]
+                ions["CALIBRATED_RT"][ion_index + 1: upper_index] - ion["CALIBRATED_RT"]
+            ) <= rt_error
         )
         # candidate_indices = candidate_indices[
         #     np.flatnonzero(
@@ -560,30 +571,24 @@ def __multiprocessedDetectIonNeighbors(kwargs):
         #     )
         # ]
         candidate_indices = candidate_indices[
-            np.flatnonzero(
-                np.abs(
-                    ions["CALIBRATED_DT"][candidate_indices] - ion["CALIBRATED_DT"]
-                ) <= parameters["ION_ALIGNMENT_DEVIATION_FACTOR"] * np.sqrt(
-                    ions["DT_ERROR"][candidate_indices]**2 + ion["DT_ERROR"]**2
-                )
+            np.abs(
+                ions["CALIBRATED_DT"][candidate_indices] - ion["CALIBRATED_DT"]
+            ) <= parameters["ION_ALIGNMENT_DEVIATION_FACTOR"] * np.sqrt(
+                ions["DT_ERROR"][candidate_indices]**2 + ion["DT_ERROR"]**2
             )
         ]
         candidate_indices = candidate_indices[
-            np.flatnonzero(
-                np.abs(
-                    ions["CALIBRATED_RT"][candidate_indices] - ion["CALIBRATED_RT"]
-                ) <= rt_error
-            )
+            (
+                ions["CALIBRATED_MZ"][candidate_indices] - ion["CALIBRATED_MZ"]
+            ) * 1000000 <= parameters["ION_ALIGNMENT_DEVIATION_FACTOR"] * np.sqrt(
+                ions["MZ_ERROR"][candidate_indices]**2 + ion["MZ_ERROR"]**2
+            ) * ion["CALIBRATED_MZ"]
         ]
         candidate_indices = candidate_indices[
-            np.flatnonzero(
-                ions["LE"][candidate_indices] == ion["LE"]
-            )
+            ions["LE"][candidate_indices] == ion["LE"]
         ]
         candidate_indices = candidate_indices[
-            np.flatnonzero(
-                ions["SAMPLE"][candidate_indices] != ion["SAMPLE"]
-            )
+            ions["SAMPLE"][candidate_indices] != ion["SAMPLE"]
         ]
         # candidate_ions = ions[candidate_indices]
         # rt_distances = (
@@ -731,14 +736,6 @@ def __trimAnchor(
                 new_distances.eliminate_zeros()
                 distances += new_distances * u_v_dist
                 columns, rows = new_distances.nonzero()
-            # distances = scipy.sparse.csgraph.dijkstra(
-            #     M,
-            #     directed=False,
-            #     unweighted=True,
-            #     limit=parameters["SAMPLE_COUNT"],
-            # )
-            # for u_v_dist in distance_generator:
-            #     columns, rows = (distances == u_v_dist).nonzero()
                 problematic_indices = np.flatnonzero(
                     anchor_samples[columns] == anchor_samples[rows]
                 )

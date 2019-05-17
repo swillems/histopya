@@ -356,3 +356,7 @@ def runSingleWorkflowStep(
 # import src.gui; import importlib; importlib.reload(src.gui); d=src.gui.Dataset("data/tenzer/parameters.json"); g=src.gui.GUI(d)
 
 # for i in {10..14}; do awk '(($4 > 90)&& ($4 < 95)) || NR==1' data/tenzer/apex/S130423_"$i"_Apex3DIons.csv > data/test2/apex/sample_a_"$i".csv; done
+
+# percolator percolator.csv --results-psms percolator/target_pims.csv --results-peptides percolator/target_peptides.csv --decoy-results-psms percolator/decoy_pims.csv -I "concatenated" -A --results-proteins percolator/target_proteins.csv -P DECOY_ -x -D 15 2>&1 | tee percolator/percolator_log.txt
+
+# awk '$3 < 0.01' data/480_PharmaFluidics/results/percolator/target_pims.csv | cut -f 6 | cut -d "_" -f 2 | sort | uniq -c

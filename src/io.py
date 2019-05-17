@@ -76,11 +76,18 @@ def saveJSON(json_dict, file_name, parameters, log=None):
         json.dump(json_dict, outfile, indent=4, sort_keys=True)
 
 
-def loadArrayFromCsv(file_name, parameters, log=None):
+def loadArrayFromCsv(file_name, parameters, log=None, use_cols=None):
     ''' Loads a numpy array from the corresponding CSV file name in parameters'''
     if log is not None:
         log.printIO(file_name, "Loading")
-    array = pd.read_csv(file_name, sep=parameters["APEX_DELIMITER"]).values
+    if use_cols is None:
+        array = pd.read_csv(file_name, sep=parameters["APEX_DELIMITER"]).values
+    else:
+        array = pd.read_csv(
+            file_name,
+            sep=parameters["APEX_DELIMITER"],
+            usecols=use_cols
+        ).values[:, np.argsort(np.argsort(use_cols))]
     return array
 
 
