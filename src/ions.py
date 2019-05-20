@@ -483,7 +483,8 @@ def detectAllIonNeighbors(
     log,
     save=False,
     pre_sort=True,
-    trim=True
+    trim=True,
+    restitch=True
 ):
     with log.newSection("Calculating ion neighbors"):
         if pre_sort:
@@ -532,6 +533,8 @@ def detectAllIonNeighbors(
                 parameters,
                 log
             )
+        log.printMessage("Making neighbors bi-directional")
+        neighbors = neighbors + neighbors.T
         if trim:
             ions = trimNeighborsToAnchors(
                 ions,
@@ -539,6 +542,8 @@ def detectAllIonNeighbors(
                 parameters,
                 log
             )
+            if restitch:
+                ions = __reStitchAggregates(ions, neighbors, parameters, log)
     return ions, neighbors
 
 
@@ -625,8 +630,6 @@ def trimNeighborsToAnchors(ions, neighbors, parameters, log, save=False):
     with log.newSection("Trimming network into unambiguous ion aggregates"):
         ion_samples = ions["SAMPLE"]
         process_count = parameters["CPU_COUNT"]
-        log.printMessage("Making neighbors bi-directional")
-        neighbors = neighbors + neighbors.T
         log.printMessage("Connecting components")
         anchor_count, ion_labels = scipy.sparse.csgraph.connected_components(
             neighbors,
@@ -697,85 +700,84 @@ def __trimAnchor(
     anchor_samples,
     parameters
 ):
+    if len(anchor_ions) <= parameters["SAMPLE_COUNT"]:
+        if len(np.unique(anchor_samples)) == len(anchor_samples):
+            return [anchor_ions]
     trimmed_anchors = []
-    if (
-        len(anchor_ions) <= parameters["SAMPLE_COUNT"]
-    ) & (
-        len(np.unique(anchor_samples)) == len(anchor_samples)
-    ):
-        trimmed_anchors.append(anchor_ions)
+    if len(anchor_ions) < 1000:
+        M = neighbors[np.ix_(anchor_ions, anchor_ions)]
     else:
-        if len(anchor_ions) < 1000:
-            M = neighbors[np.ix_(anchor_ions, anchor_ions)]
-        else:
-            M = neighbors[anchor_ions].T.tocsr()[anchor_ions]
-        M = (M**2).multiply(M)
-        distance_generator = (i for i in range(1, parameters["SAMPLE_COUNT"] + 1))
-        u_v_dist = next(distance_generator)
-        while True:
-            component_count, component_labels = scipy.sparse.csgraph.connected_components(
-                M,
-                directed=False,
-                return_labels=True
+        M = neighbors[anchor_ions].T.tocsr()[anchor_ions]
+    M = (M**2).multiply(M)
+    distance_generator = (i for i in range(1, parameters["SAMPLE_COUNT"] + 1))
+    u_v_dist = next(distance_generator)
+    while True:
+        component_count, component_labels = scipy.sparse.csgraph.connected_components(
+            M,
+            directed=False,
+            return_labels=True
+        )
+        if component_count > 1:
+            break
+        distances = M.astype(np.int)
+        for dist in range(2, u_v_dist + 1):
+            old_distances = distances.astype(np.bool)
+            new_distances = old_distances * M
+            new_distances = new_distances - new_distances.multiply(old_distances)
+            new_distances.setdiag(0)
+            new_distances.eliminate_zeros()
+            distances += new_distances * dist
+        for u_v_dist in distance_generator:
+            old_distances = distances.astype(np.bool)
+            new_distances = old_distances * M
+            new_distances = new_distances - new_distances.multiply(old_distances)
+            new_distances.setdiag(0)
+            new_distances.eliminate_zeros()
+            distances += new_distances * u_v_dist
+            columns, rows = new_distances.nonzero()
+            problematic_indices = np.flatnonzero(
+                anchor_samples[columns] == anchor_samples[rows]
             )
-            if component_count > 1:
+            if len(problematic_indices) > 0:
+                for problem_index in problematic_indices:
+                    u = columns[problem_index]
+                    v = rows[problem_index]
+                    if u < v:
+                        continue
+                    # TODO clean up
+                    detoured_distances = distances[(u, v), :].todense().A
+                    summed_distance = np.sum(detoured_distances, axis=0)
+                    partial_distances = defaultdict(list)
+                    for i in np.flatnonzero(summed_distance == u_v_dist):
+                        partial_distances[detoured_distances[0, i]].append(i)
+                    shortest_path_length = []
+                    sorted_partial_distance_indices = [
+                        j for i, j in sorted(partial_distances.items())
+                    ]
+                    prev = len(sorted_partial_distance_indices[0])
+                    for i in sorted_partial_distance_indices[1:]:
+                        short = prev * len(i)
+                        shortest_path_length.append(short)
+                        prev = len(i)
+                    minimum = min(shortest_path_length)
+                    for i in [
+                        i for i, v in enumerate(shortest_path_length) if v == minimum
+                    ]:
+                        for j in sorted_partial_distance_indices[i]:
+                            for k in sorted_partial_distance_indices[i + 1]:
+                                if M[j, k] != 0:
+                                    M[j, k] = 0
+                                    M[k, j] = 0
+                M.eliminate_zeros()
                 break
-            distances = M.astype(np.int)
-            for dist in range(2, u_v_dist + 1):
-                old_distances = distances.astype(np.bool)
-                new_distances = old_distances * M
-                new_distances = new_distances - new_distances.multiply(old_distances)
-                new_distances.setdiag(0)
-                new_distances.eliminate_zeros()
-                distances += new_distances * dist
-            for u_v_dist in distance_generator:
-                old_distances = distances.astype(np.bool)
-                new_distances = old_distances * M
-                new_distances = new_distances - new_distances.multiply(old_distances)
-                new_distances.setdiag(0)
-                new_distances.eliminate_zeros()
-                distances += new_distances * u_v_dist
-                columns, rows = new_distances.nonzero()
-                problematic_indices = np.flatnonzero(
-                    anchor_samples[columns] == anchor_samples[rows]
-                )
-                if len(problematic_indices) > 0:
-                    for problem_index in problematic_indices:
-                        u = columns[problem_index]
-                        v = rows[problem_index]
-                        if u < v:
-                            continue
-                        # TODO clean up
-                        detoured_distances = distances[(u, v), :].todense().A
-                        summed_distance = np.sum(detoured_distances, axis=0)
-                        c = defaultdict(list)
-                        for i in np.flatnonzero(summed_distance == u_v_dist):
-                            c[detoured_distances[0, i]].append(i)
-                        shorts = []
-                        y = [j for i, j in sorted(c.items())]
-                        prev = len(y[0])
-                        for i in y[1:]:
-                            short = prev * len(i)
-                            shorts.append(short)
-                            prev = len(i)
-                        minimum = min(shorts)
-                        indices = [i for i, v in enumerate(shorts) if v == minimum]
-                        for i in indices:
-                            for j in y[i]:
-                                for k in y[i + 1]:
-                                    if M[j, k] != 0:
-                                        M[j, k] = 0
-                                        M[k, j] = 0
-                    M.eliminate_zeros()
-                    break
-        for i in range(component_count):
-            connected_component = np.flatnonzero(component_labels == i)
-            trimmed_anchors += __trimAnchor(
-                anchor_ions[connected_component],
-                neighbors,
-                anchor_samples[connected_component],
-                parameters
-            )
+    for i in range(component_count):
+        connected_component = np.flatnonzero(component_labels == i)
+        trimmed_anchors += __trimAnchor(
+            anchor_ions[connected_component],
+            neighbors,
+            anchor_samples[connected_component],
+            parameters
+        )
     return trimmed_anchors
 
 
@@ -785,6 +787,80 @@ def __setAnchors(ions, anchors, parameters, log):
         # ions["ANCHOR"][anchor_ions] = anchor_index + 1
         ions["AGGREGATE_INDEX"][anchor_ions] = anchor_index
     return ions
+
+
+def __reStitchAggregates(ions, neighbors, parameters, log):
+    with log.newSection("Re-stitching over-trimmed anchors"):
+        a, b = neighbors.nonzero()
+        while True:
+            s = np.stack(
+                [
+                    ions["AGGREGATE_INDEX"][a],
+                    ions["AGGREGATE_INDEX"][b]
+                ]
+            )
+            # max_size = np.max(ions["AGGREGATE_INDEX"]) + 1
+            n = scipy.sparse.csr_matrix(
+                (
+                    (s[0] != s[1]),
+                    s
+                ),
+                # shape=(
+                #     max_size,
+                #     max_size
+                # )
+            )
+            n.eliminate_zeros()
+            anchor_ions = src.aggregates.__matchIonsToAnchors(
+                ions,
+                0,
+                parameters,
+                log
+            )
+            with np.errstate(divide='ignore'):
+                anchors = src.aggregates.__defineAnchorProperties(
+                    anchor_ions,
+                    ions,
+                    log
+                )
+            x, y = n.nonzero()
+            left = (anchor_ions[x] > 0).astype(int)
+            right = (anchor_ions[y] > 0).astype(int)
+            overlap = left + right
+            mergeable = np.flatnonzero((np.sum(overlap == 2, axis=1) == 0).A)
+            if len(mergeable) == 0:
+                return ions
+            # n.data = mergeable
+            # n.eliminate_zeros()
+            x = x[mergeable]
+            y = y[mergeable]
+            with np.errstate(divide='ignore'):
+                mzd = 1000000 * np.abs(
+                    anchors["MZ"][x] - anchors["MZ"][y]
+                ) / np.maximum(anchors["MZ"][x], anchors["MZ"][y])
+                mzd /= np.std(mzd)
+                rtd = np.abs(anchors["RT"][x] - anchors["RT"][y])
+                rtd /= np.std(rtd)
+                dtd = np.abs(anchors["DT"][x] - anchors["DT"][y])
+                dtd /= np.std(dtd)
+            dists = np.sqrt(mzd**2 + rtd**2 + dtd**2)
+            order = np.argsort(dists)
+            x = x[order]
+            y = y[order]
+            dists = dists[order]
+            elems, firsts = np.unique(x, return_index=True)
+            match = firsts + firsts % 2 * -2 + 1
+            pairs = np.flatnonzero(np.isin(firsts, match))
+            if len(pairs) == 0:
+                return ions
+            merge_x = x[firsts[pairs]]
+            merge_y = x[match[pairs]]
+            o = merge_x > merge_y
+            merge_x = merge_x[o]
+            merge_y = merge_y[o]
+            selected_ions = anchor_ions[merge_x]
+            new_aggregates = np.repeat(merge_y, np.diff(selected_ions.indptr))
+            ions["AGGREGATE_INDEX"][selected_ions.data] = new_aggregates
 
 
 def calibrateIntensities(

@@ -44,7 +44,7 @@ def __matchIonsToAnchors(ions, signal_count_threshold, parameters, log):
         dtype=np.int
     )
     log.printMessage("Found {} aggregate ions".format(anchor_ions.shape[0]))
-    if signal_count_threshold > 1:
+    if signal_count_threshold > 0:
         log.printMessage("Skipping noisy aggregate ions")
         anchor_sizes = np.diff(anchor_ions.indptr)
         anchor_ions = anchor_ions[
@@ -73,10 +73,11 @@ def __defineAnchorProperties(anchor_ions, ions, log=None):
         ]
     )
     anchors["ION_COUNT"] = np.diff(anchor_ions.indptr)
+    anchors["LE"] = ions["LE"][anchor_ions.indptr[:-1]]
     tmp_attributes = anchor_ions.copy()
-    tmp_attributes.data = ions["LE"][anchor_ions.data]
-    attribute_row_sums = tmp_attributes.sum(axis=1).A1
-    anchors["LE"] = attribute_row_sums > 0
+    # tmp_attributes.data = ions["LE"][anchor_ions.data]
+    # attribute_row_sums = tmp_attributes.sum(axis=1).A1
+    # anchors["LE"] = attribute_row_sums > 0
     for attribute in [
         "MZ",
         "RT",
@@ -427,17 +428,17 @@ def detectAllAnchorNeighbors(
 ):
     '''TODO COMMENT'''
     with log.newSection("Calculating anchor neighbors"):
-        sample_rt_indices = __indexIonRT(
+        sample_rt_indices, low_rt_indices, high_rt_indices = __indexIonRT(
             anchor_ions,
             ions,
             parameters,
             log
         )
-        sample_rts = [
-            ions["RT"][sample_rt_indices[i]] for i in range(
-                parameters["SAMPLE_COUNT"]
-            )
-        ]
+        # sample_rts = [
+        #     ions["RT"][sample_rt_indices[i]] for i in range(
+        #         parameters["SAMPLE_COUNT"]
+        #     )
+        # ]
         process_count = parameters["CPU_COUNT"]
         in_queue = mp.partitionedQueue(anchors, process_count)
         neighbors = scipy.sparse.csr_matrix(
@@ -454,8 +455,10 @@ def detectAllAnchorNeighbors(
                 "anchors": anchors,
                 "anchor_ions": anchor_ions,
                 "sample_rt_indices": sample_rt_indices,
-                "sample_rts": sample_rts,
-                "alignment_parameters": alignment_parameters,
+                "low_rt_indices": low_rt_indices,
+                "high_rt_indices": high_rt_indices,
+                # "sample_rts": sample_rts,
+                # "alignment_parameters": alignment_parameters,
             },
             process_count=process_count,
         ):
@@ -475,16 +478,18 @@ def __multiprocessedDetectAnchorNeighbors(kwargs):
     in_queue = kwargs['in_queue']
     out_queue = kwargs['out_queue']
     ions = kwargs['ions']
-    alignment_parameters = kwargs["alignment_parameters"]
+    # alignment_parameters = kwargs["alignment_parameters"]
     anchors = kwargs['anchors']
     anchor_ions = kwargs['anchor_ions']
     sample_rt_indices = kwargs['sample_rt_indices']
-    sample_rts = kwargs['sample_rts']
+    # sample_rts = kwargs['sample_rts']
     parameters = kwargs["parameters"]
     neighbor_all_channels = parameters['NEIGHBOR_ALL_CHANNELS']
-    dt_error = alignment_parameters["DT"]
+    low_indices = kwargs["low_rt_indices"]
+    high_indices = kwargs["high_rt_indices"]
+    # dt_error = alignment_parameters["DT"]
     # rt_error = alignment_parameters["RT"]
-    max_rt_error = np.max(ions["RT_ERROR"])
+    # max_rt_error = np.max(ions["RT_ERROR"])
     minimum_hits = np.array(parameters["MINIMUM_OVERLAP"])
     selected_anchors = in_queue.get()
     neighbors = scipy.sparse.dok_matrix(
@@ -504,41 +509,39 @@ def __multiprocessedDetectAnchorNeighbors(kwargs):
             # ion_dt = ion["SHIFTED_DT"]
             ion_dt = ion["DT"]
             ion_sample = ion["SAMPLE"]
-            rt_error = np.sqrt(ion["RT_ERROR"]**2 + max_rt_error**2)
-            low_index = np.searchsorted(
-                sample_rts[ion_sample],
-                ion_rt - parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"] * rt_error,#[ion_sample],
-                "left"
-            )
-            high_index = np.searchsorted(
-                sample_rts[ion_sample],
-                ion_rt + parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"] * rt_error,#[ion_sample],
-                "right"
-            )
+            # rt_error = np.sqrt(ion["RT_ERROR"]**2 + max_rt_error**2)
+            # low_index = np.searchsorted(
+            #     sample_rts[ion_sample],
+            #     ion_rt - parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"] * rt_error,#[ion_sample],
+            #     "left"
+            # )
+            # high_index = np.searchsorted(
+            #     sample_rts[ion_sample],
+            #     ion_rt + parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"] * rt_error,#[ion_sample],
+            #     "right"
+            # )
+            low_index = low_indices[ion_index]
+            high_index = high_indices[ion_index]
             ion_neighbors = sample_rt_indices[ion_sample][low_index: high_index]
-            neighbor_dt_error = np.abs(
-                ions["DT"][ion_neighbors] - ion_dt
-            )
             # TODO update parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"]
-            allowed_neighbor_dt_error = np.sqrt(
-                ion["DT_ERROR"]**2 + ions["DT_ERROR"][ion_neighbors]**2
-            ) * parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"]
             ion_neighbors = ion_neighbors[
-                neighbor_dt_error < allowed_neighbor_dt_error
+                np.abs(
+                    ions["DT"][ion_neighbors] - ion_dt
+                ) < np.sqrt(
+                    ion["DT_ERROR"]**2 + ions["DT_ERROR"][ion_neighbors]**2
+                ) * parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"]
             ]
             ion_neighbors = ion_neighbors[
                 ions["AGGREGATE_INDEX"][ion_neighbors] < anchor_index
             ]
             if not neighbor_all_channels:
                 ion_neighbors = ion_neighbors[ions["LE"][ion_neighbors] == ion["LE"]]
-            allowed_neighbor_rt_error = np.sqrt(
-                ion["RT_ERROR"]**2 + ions["RT_ERROR"][ion_neighbors]**2
-            ) * parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"]
-            neighbor_rt_error = np.abs(
-                ions["RT"][ion_neighbors] - ion_rt
-            )
             ion_neighbors = ion_neighbors[
-                neighbor_rt_error < allowed_neighbor_rt_error
+                np.abs(
+                    ions["RT"][ion_neighbors] - ion_rt
+                ) < np.sqrt(
+                    ion["RT_ERROR"]**2 + ions["RT_ERROR"][ion_neighbors]**2
+                ) * parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"]
             ]
             # ion_neighbor_dts = ions["SHIFTED_DT"][ion_neighbors]
             # ion_neighbors = ion_neighbors[
@@ -591,16 +594,52 @@ def __multiprocessedDetectAnchorNeighbors(kwargs):
 
 
 def __indexIonRT(anchor_ions, ions, parameters, log):
-    log.printMessage("Indexing ion RTs")
-    sample_ions = anchor_ions.T.tocsr()
-    original_indices = []
-    for sample in range(parameters["SAMPLE_COUNT"]):
-        selected_ions = sample_ions.data[
-            sample_ions.indptr[sample]: sample_ions.indptr[sample + 1]
+    with log.newSection("Indexing ion RTs"):
+        sample_ions = anchor_ions.T.tocsr()
+        sample_rt_indices = []
+        for sample in range(parameters["SAMPLE_COUNT"]):
+            selected_ions = sample_ions.data[
+                sample_ions.indptr[sample]: sample_ions.indptr[sample + 1]
+            ]
+            sample_rt_order = np.argsort(ions["RT"][selected_ions])
+            sample_rt_indices.append(selected_ions[sample_rt_order])
+        sample_rts = [
+            ions["RT"][sample_rt_indices[i]] for i in range(
+                parameters["SAMPLE_COUNT"]
+            )
         ]
-        sample_rt_order = np.argsort(ions["RT"][selected_ions])
-        original_indices.append(selected_ions[sample_rt_order])
-    return original_indices
+        log.printMessage("Estimating max rt errors")
+        max_rt_error = np.max(ions["RT_ERROR"])
+        sample_ions = [
+            np.flatnonzero(ions["SAMPLE"] == i) for i in range(
+                parameters["SAMPLE_COUNT"]
+            )
+        ]
+        all_rt_errors = [
+            np.sqrt(
+                ions[sample]["RT_ERROR"]**2 + max_rt_error**2
+            ) for sample in sample_ions
+        ]
+        log.printMessage("Indexing lower rt borders")
+        low_indices = [
+            np.searchsorted(
+                sample_rts[sample],
+                ions["RT"][sample_ions[sample]] - parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"] * rt_errors,
+                "left"
+            ) for sample, rt_errors in enumerate(all_rt_errors)
+        ]
+        log.printMessage("Indexing upper rt borders")
+        high_indices = [
+            np.searchsorted(
+                sample_rts[sample],
+                ions["RT"][sample_ions[sample]] + parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"] * rt_errors,
+                "left"
+            ) for sample, rt_errors in enumerate(all_rt_errors)
+        ]
+        order = np.argsort(np.concatenate(sample_ions))
+        low_indices = np.concatenate(low_indices)[order]
+        high_indices = np.concatenate(high_indices)[order]
+    return sample_rt_indices, low_indices, high_indices
 
 
 def matchAnchorsToFragments(

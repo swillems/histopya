@@ -25,7 +25,7 @@ import csv
 # import importlib
 # importlib.reload(src.aggregates)
 # parameter_file_name = "data/lfq_single_A_B_QC/parameters_res_auto.json"
-parameter_file_name = "data/test/parameters.json"
+parameter_file_name = "data/test2/parameters.json"
 # parameter_file_name = "data/lfq_swim_190327/parameters_manual.json"
 # parameter_file_name = "data/lfq_udmse_190327/parameters_default_peakpicking_test.json"
 # parameter_file_name = "data/k562_3_samples/parameters_res_25000.json"
@@ -514,51 +514,23 @@ plt.show()
 
 
 
-def reStitchAnchors():
-    a, b = neighbors.nonzero()
-    s = np.stack(
-        [
-            ions["ANCHOR"][a],
-            ions["ANCHOR"][b]
-        ]
-    )
-    n = scipy.sparse.csr_matrix(
-        (
-            s[0] != s[1],
-            s
-        ),
-        shape=(
-            len(anchors),
-            len(anchors)
-        )
-    )
-    n.eliminate_zeros()
-    isotope_count, anchor_labels = scipy.sparse.csgraph.connected_components(
-        n,
-        directed=False,
-        return_labels=True
-    )
-    anchor_order = np.argsort(anchor_labels)
-    anchor_label_breaks = np.concatenate(
-        [
-            [0],
-            np.flatnonzero(np.diff(anchor_labels[anchor_order]) > 0) + 1,
-            [len(anchor_labels)]
-        ]
-    )
-    anchor_groups = []
-    for i in np.flatnonzero(np.diff(anchor_label_breaks) > 1):
-        isotope = anchor_order[
-            anchor_label_breaks[i]: anchor_label_breaks[i + 1]
-        ]
-        anchor_groups.append(isotope)
-    return np.array(anchor_groups)
-    # defined = len(np.concatenate(anchor_groups))
-    # undefined = len(anchors) - defined
-    # for isotope_index, isotope_anchors in enumerate(anchor_groups):
-    #     # TODO +1 for isotopes only?
-    #     anchors["SPECTRUM"][isotope_anchors] = isotope_index + undefined
-    # anchors["SPECTRUM"][anchors["SPECTRUM"] == 0] = np.arange(undefined)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ambiguous = np.array(
@@ -1125,156 +1097,6 @@ for s in spectra:
 # p = psutil.Process(pid)
 # sum(i.cpu_percent(interval=0.1) for i in p.children(recursive=True))+p.cpu_percent(interval=0.1)
 # sum(i.memory_percent(memtype="pss") for i in p.children(recursive=True))+p.memory_percent(memtype="pss")
-
-
-#
-#
-#
-#
-#
-#
-# raise Exception("Not main function!")
-#
-#
-
-# import importlib
-# importlib.reload(src.aggregates)
-import src.parameters
-import src.io
-import src.ions
-import src.aggregates
-import src.peptides
-import pandas as pd
-import numpy as np
-import src.parellelization as mp
-import scipy.sparse
-from collections import defaultdict
-import json
-import sys
-import time
-import traceback as tb
-from scipy.special import binom as binom
-from contextlib import contextmanager
-from collections import defaultdict
-import seaborn as sns
-from matplotlib import pyplot as plt
-from sklearn import linear_model
-import csv
-# parameter_file_name = "data/ypic/prop/parameters.json"
-# parameter_file_name = "data/ypic/normal/parameters.json"
-# parameter_file_name = "data/k562/parameters.json"
-parameter_file_name = "data/test/parameters.json"
-# parameter_file_name = "data/lfq/parameters.json"
-parameters = src.parameters.importParameterDictFromJSON(parameter_file_name)
-log = src.io.Log(parameters["LOG_FILE_NAME"])
-anchors = src.io.loadArray("ANCHORS_FILE_NAME", parameters)
-anchor_ions = src.io.loadMatrix(
-    "ANCHOR_IONS_FILE_NAME",
-    parameters,
-)
-ions = src.io.loadArray("IONS_FILE_NAME", parameters)
-ion_alignment_parameters = src.io.loadJSON(
-    "ION_ALIGNMENT_PARAMETERS_FILE_NAME",
-    parameters,
-)
-anchor_alignment_parameters = src.io.loadJSON(
-    "ANCHOR_ALIGNMENT_PARAMETERS_FILE_NAME",
-    parameters,
-)
-neighbors = src.io.loadMatrix(
-    "ANCHOR_NEIGHBORS_FILE_NAME",
-    parameters,
-)
-neighbors += neighbors.T
-# base_mass_dict = src.peptides.loadBaseMassDict(parameters, log)
-# proteins, total_protein_sequence, ptms, ptm_matrix = src.peptides.importProteinsAndPtms(parameters, log)
-# peptides, peptide_index_matrix, digestion_matrix = src.peptides.digestProteins(
-#     proteins,
-#     total_protein_sequence,
-#     ptm_matrix,
-#     parameters,
-#     log,
-#     digestion_aas="KR"
-# )
-# peptide_masses, fragments = src.peptides.calculateMasses(
-#     peptides,
-#     peptide_index_matrix,
-#     base_mass_dict,
-#     total_protein_sequence,
-#     parameters,
-#     log,
-# )
-# parameters["FILTER_PRECURSOR_EXISTENCE_IN_LE"] = True
-# parameters["PERCOLATOR_DATA_FILE_NAME"] = 'data/k562/results/percolator_le.csv'
-# anchor_boundaries, fragment_peptide_indices, fragment_indices = src.aggregates.matchAnchorsToFragments(
-#     fragments,
-#     anchors,
-#     base_mass_dict,
-#     parameters,
-#     log
-# )
-# anchor_peptide_scores, anchor_peptide_match_counts = src.aggregates.getAnchorPeptideMatrix(
-#     anchors,
-#     neighbors,
-#     peptides,
-#     anchor_boundaries,
-#     fragment_peptide_indices,
-#     parameters,
-#     log
-# )
-# anchor_fragment_indices = src.aggregates.getAnchorFragmentIndices(
-#     anchor_peptide_match_counts,
-#     anchor_boundaries,
-#     fragment_indices,
-#     fragment_peptide_indices,
-#     parameters,
-#     log
-# )
-# # a=np.unique(anchor_peptide_scores.indices[(anchor_peptide_scores.data>=4.5)])
-# # np.unique(peptides["DECOY"][a],return_counts=True)[1]
-# # parameters["FILTER_PRECURSOR_EXISTENCE_IN_LE"] = True
-# peptide_boundaries, anchor_indices = src.aggregates.matchPeptidesToAnchors(
-#     anchors,
-#     peptide_masses,
-#     base_mass_dict,
-#     parameters,
-#     log,
-# )
-# precursor_indices = src.aggregates.findFragmentPrecursors(
-#     anchor_peptide_match_counts,
-#     anchors,
-#     anchor_indices,
-#     peptide_boundaries,
-#     neighbors,
-#     anchor_alignment_parameters,
-#     parameters,
-#     log
-# )
-# import importlib
-# importlib.reload(src.io)
-# importlib.reload(src.aggregates)
-# src.aggregates.writePercolatorFile(
-#     anchors,
-#     base_mass_dict,
-#     anchor_peptide_match_counts,
-#     fragments,
-#     anchor_fragment_indices,
-#     neighbors,
-#     peptides,
-#     peptide_masses,
-#     precursor_indices,
-#     anchor_peptide_scores,
-#     peptide_index_matrix,
-#     total_protein_sequence,
-#     parameters,
-#     log
-# )
-#
-#
-#
-#
-
-
 
 
 
