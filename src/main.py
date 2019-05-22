@@ -363,3 +363,21 @@ def runSingleWorkflowStep(
 # percolator percolator.csv --results-psms percolator/target_pims.csv --results-peptides percolator/target_peptides.csv --decoy-results-psms percolator/decoy_pims.csv -I "concatenated" -A --results-proteins percolator/target_proteins.csv -P DECOY_ -x -D 15 2>&1 | tee percolator/percolator_log.txt
 
 # awk '$3 < 0.01' data/480_PharmaFluidics/results/percolator/target_pims.csv | cut -f 6 | cut -d "_" -f 2 | sort | uniq -c
+
+
+
+
+
+
+
+
+
+
+
+
+# taskset -c 0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62,64,66,68,70,72,74,76,78,80,82,84,86 wine64 /media/proteomics/MISC/Sander/UW/UniversalWorkflow_Software/Apx2D/Apex2D_v3.1.0.9.5/Apex3D64.exe -pRawDirName "/media/proteomics/Thesis2019/RAW data/190513_SynaptData/190508_ProteomeComparison_HDMSE_HEP_05_C.raw" -outputDirName /media/proteomics/MISC/Sander/APEX/20190508_Thesis -lockMassZ2 785.8426 -lockmassToleranceAMU 0.25 -bCSVOutput 1 -writeFuncCsvFiles 0 -bEnableCentroids 0
+#
+# taskset -c 0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62,64,66,68,70,72,74,76,78,80,82,84,86 wine64 /media/proteomics/MISC/Sander/UW/UniversalWorkflow_Software/Apx2D/Apex2D_v3.1.0.9.5/Apex3D64.exe -pRawDirName "/media/proteomics/Thesis2019/RAW data/190513_SynaptData/190508_ProteomeComparison_HDMSE_TP_05_D.raw" -outputDirName /media/proteomics/MISC/Sander/APEX/20190508_Thesis -lockMassZ2 785.8426 -lockmassToleranceAMU 0.25 -bCSVOutput 1 -writeFuncCsvFiles 0 -bEnableCentroids 0
+#
+#
+#

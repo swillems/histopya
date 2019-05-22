@@ -327,7 +327,7 @@ def plotAnchors(
     parameters,
     log
 ):
-    with log.newSection("Saving estimation anchor plots"):
+    with log.newSection("Saving estimation aggregate plots"):
         figure_names = parameters["QUICK_ANCHOR_PLOTS"]
         plot_width = parameters["PLOT_WIDTH"]
         plot_height = parameters["PLOT_HEIGHT"]
@@ -352,7 +352,7 @@ def plotAnchorDistributions(
     log
 ):
     def summarizeAnchors(estimation_anchors, parameters, log):
-        log.printMessage("Summarizing estimation anchors")
+        log.printMessage("Summarizing estimation aggregates")
         anchors = np.empty(
             len(estimation_anchors),
             dtype=estimation_anchors.dtype
@@ -360,7 +360,7 @@ def plotAnchorDistributions(
         for attribute in anchors.dtype.names:
             anchors[attribute] = np.average(estimation_anchors[attribute], axis=1)
         return anchors
-    with log.newSection("Saving estimation anchor distribution plots"):
+    with log.newSection("Saving estimation aggregate distribution plots"):
         anchors = summarizeAnchors(estimation_anchors, parameters, log)
         figure_names = parameters["QUICK_ANCHOR_DISTRIBUTION_PLOTS"]
         plot_width = parameters["PLOT_WIDTH"]
@@ -384,7 +384,7 @@ def plotAnchorDistributions(
                 )
             )
             plt.xlabel("SAMPLE")
-            plt.ylabel("{} distance to anchor averages".format(label))
+            plt.ylabel("{} distance to aggregate averages".format(label))
             # plt.get_current_fig_manager().resize(
             #     width=plot_width,
             #     height=plot_height
@@ -448,7 +448,7 @@ def plotAnchorDistributions(
 
 #TODO moved from anchors
 def plotAnchorCounts(parameters, anchors, ions, log):
-    log.printMessage("Saving anchor count plots")
+    log.printMessage("Saving aggregate count plots")
     figure_names = parameters["ANCHOR_COUNT_PLOTS"]
     plot_width = parameters["PLOT_WIDTH"]
     plot_height = parameters["PLOT_HEIGHT"]
@@ -465,7 +465,7 @@ def plotAnchorCounts(parameters, anchors, ions, log):
                 return_counts=True
             )
             plt.plot(counts, frequencies)
-        plt.xlabel("Anchor size")
+        plt.xlabel("Aggregate size")
         plt.ylabel("Frequency")
         # plt.get_current_fig_manager().resize(
         #     width=plot_width,

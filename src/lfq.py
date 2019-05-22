@@ -2995,33 +2995,6 @@ np.sum(~z)/np.sum(z)
 
 
 
-neighbor_threshold = parameters["NEIGHBOR_THRESHOLD"]
-sample_count = parameters["SAMPLE_COUNT"]
-# percentile_limit = parameters["ANCHOR_ALIGNMENT_PERCENTILE_THRESHOLD"]
-percentile_limit = (
-    1 - (
-        1 - scipy.stats.norm.cdf(
-            parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"]
-        )
-    ) * 2
-) ** 2 # DT and RT are indepently done
-minimum_overlap = parameters["MINIMUM_OVERLAP"]
-minimum_hits = [minimum_overlap]
-for total in range(1, sample_count + 1):
-    select = total
-    target = binom(total, select)
-    target *= percentile_limit**select
-    target *= (1 - percentile_limit)**(total - select)
-    while target < neighbor_threshold:
-    # while select > 0:
-        select -= 1
-        new_target = binom(total, select)
-        new_target *= percentile_limit**select
-        new_target *= (1 - percentile_limit)**(total - select)
-        target += new_target
-    minimum_hits.append(max(select, minimum_overlap))
-
-for i in enumerate(minimum_hits): i
 
 
 
@@ -3033,103 +3006,6 @@ for i in enumerate(minimum_hits): i
 
 
 
-
-
-
-
-
-
-
-
-
-
-percolated_annotations = pd.read_csv(parameters["PERCOLATOR_TARGET_PIMS"], delimiter="\t")
-percolated_annotations_fdrs = percolated_annotations.values[:, 2]
-significant_pims = percolated_annotations.values[
-    percolated_annotations_fdrs < 0.01,
-    0
-].astype(int)
-anchs, peps = anchor_peptide_match_counts.nonzero()
-significant_anchors = anchs[significant_pims]
-significant_peptides = peps[significant_pims]
-
-
-
-
-def includeBackground(selection):
-    plt.scatter(
-        anchors["RT"][selection],
-        anchors["DT"][selection],
-        c="lightgrey",
-        marker="."
-    )
-
-
-def includeMiddleground(selection):
-    plt.scatter(
-        anchors["RT"][selection],
-        anchors["DT"][selection],
-        c="grey",
-    )
-
-
-def includeForeground(selection):
-    plt.scatter(
-        anchors["RT"][significant_anchors[selection]],
-        anchors["DT"][significant_anchors[selection]],
-        c=significant_peptides[selection],
-        cmap="tab10",
-        marker="."
-    )
-
-
-
-def getCurrentBackground(background_selection):
-    dt_low, dt_high = plt.ylim()
-    rt_low, rt_high = plt.xlim()
-    a = anchors["DT"] <= dt_high
-    a &= anchors["DT"] >= dt_low
-    a &= anchors["RT"] <= rt_high
-    a &= anchors["RT"] >= rt_low
-    return np.flatnonzero(a & background_selection)
-
-
-def includeNetwork(selection):
-    n = neighbors[selection].T.tocsr()[selection]
-    a, b = n.nonzero()
-    c = a < b
-    overlap = n.data[c]
-    order = np.argsort(overlap)
-    a = selection[a[c]][order]
-    b = selection[b[c]][order]
-    overlap = overlap[order]
-    start_edges = list(zip(anchors["RT"][a], anchors["DT"][a]))
-    end_edges = list(zip(anchors["RT"][b], anchors["DT"][b]))
-    norm = mpl.colors.Normalize(vmin=parameters["MINIMUM_OVERLAP"][0], vmax=parameters["SAMPLE_COUNT"])
-    m = cm.ScalarMappable(norm=norm, cmap="RdYlGn")
-    clrs = m.to_rgba(overlap)
-    # clrs = "lightgrey"
-    lc = mc.LineCollection(list(zip(start_edges, end_edges)), colors=clrs)
-    plt.axes().add_collection(lc)
-    # includeBackground(selection)
-    # includeForeground(selection)
-
-
-background_selection = anchors["ION_COUNT"] == parameters["SAMPLE_COUNT"]
-foreground_selection = anchors["ION_COUNT"][significant_anchors] == parameters["SAMPLE_COUNT"]
-
-# middleground_selection = b[isotopes][anchors["ION_COUNT"][b[isotopes]] == parameters["SAMPLE_COUNT"]]
-
-import matplotlib as mpl
-import matplotlib.cm as cm
-from matplotlib import collections  as mc
-tmp = plt.axes()
-plt.ion()
-includeBackground(background_selection)
-# includeMiddleground(middleground_selection)
-includeForeground(foreground_selection)
-selection = getCurrentBackground(background_selection)
-includeNetwork(selection)
 
 
 #
