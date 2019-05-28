@@ -67,10 +67,9 @@ def __multiprocessedImportIonsFromApexCsv(kwargs):
             #         ions = ions[~ions["LE"]]
             if parameters["HE_ONLY"]:
                 le_ions = ions[:, le_column] == 1
-                if np.all(le_ions):
-                    ions[le_column] = 0
-                else:
+                if not np.all(le_ions):
                     ions = ions[~le_ions]
+                ions[:, le_column] = 0
             ions = ions[np.argsort(ions[:, rt_column])]
             sample_column = np.full(len(ions), sample_index).reshape((-1, 1))
             ions = np.concatenate([ions, sample_column], axis=1)
@@ -544,6 +543,13 @@ def detectAllIonNeighbors(
             )
             if restitch:
                 ions = __reStitchAggregates(ions, neighbors, parameters, log)
+        if save:
+            src.io.saveArray(
+                ions,
+                "IONS_UNFILTERED_FILE_NAME",
+                parameters,
+                log
+            )
     return ions, neighbors
 
 
@@ -589,9 +595,10 @@ def __multiprocessedDetectIonNeighbors(kwargs):
                 ions["MZ_ERROR"][candidate_indices]**2 + ion["MZ_ERROR"]**2
             ) * ion["CALIBRATED_MZ"]
         ]
-        candidate_indices = candidate_indices[
-            ions["LE"][candidate_indices] == ion["LE"]
-        ]
+        if not parameters["HE_ONLY"]:
+            candidate_indices = candidate_indices[
+                ions["LE"][candidate_indices] == ion["LE"]
+            ]
         candidate_indices = candidate_indices[
             ions["SAMPLE"][candidate_indices] != ion["SAMPLE"]
         ]
@@ -793,45 +800,36 @@ def __reStitchAggregates(ions, neighbors, parameters, log):
     with log.newSection("Re-stitching over-trimmed anchors"):
         a, b = neighbors.nonzero()
         while True:
+            anchors, anchor_ions, ions = src.aggregates.defineFromIons(
+                ions,
+                parameters,
+                log,
+                save=False,
+                remove_noise=False,
+                order_anchors=False
+            )
             s = np.stack(
                 [
                     ions["AGGREGATE_INDEX"][a],
                     ions["AGGREGATE_INDEX"][b]
                 ]
             )
-            # max_size = np.max(ions["AGGREGATE_INDEX"]) + 1
             n = scipy.sparse.csr_matrix(
                 (
                     (s[0] != s[1]),
                     s
                 ),
-                # shape=(
-                #     max_size,
-                #     max_size
-                # )
             )
             n.eliminate_zeros()
-            anchor_ions = src.aggregates.__matchIonsToAnchors(
-                ions,
-                0,
-                parameters,
-                log
-            )
-            with np.errstate(divide='ignore'):
-                anchors = src.aggregates.__defineAnchorProperties(
-                    anchor_ions,
-                    ions,
-                    log
-                )
             x, y = n.nonzero()
+            anchor_ions.data += 1
             left = (anchor_ions[x] > 0).astype(int)
             right = (anchor_ions[y] > 0).astype(int)
+            anchor_ions.data -= 1
             overlap = left + right
-            mergeable = np.flatnonzero((np.sum(overlap == 2, axis=1) == 0).A)
+            mergeable = np.flatnonzero((np.sum(overlap > 1, axis=1) == 0).A)
             if len(mergeable) == 0:
                 return ions
-            # n.data = mergeable
-            # n.eliminate_zeros()
             x = x[mergeable]
             y = y[mergeable]
             with np.errstate(divide='ignore'):

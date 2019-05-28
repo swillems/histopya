@@ -9,10 +9,20 @@ from sklearn import linear_model
 from scipy.optimize import curve_fit
 
 
-def defineFromIons(ions, parameters, log, save=True, remove_noise=True):
+def defineFromIons(
+    ions,
+    parameters,
+    log,
+    save=True,
+    remove_noise=True,
+    order_anchors=True
+):
     '''TODO COMMENT'''
     with log.newSection("Defining aggregate ions"):
-        signal_count_threshold = parameters["SIGNAL_COUNT_THRESHOLD"]
+        if remove_noise:
+            signal_count_threshold = parameters["SIGNAL_COUNT_THRESHOLD"]
+        else:
+            signal_count_threshold = 1
         anchor_ions = __matchIonsToAnchors(ions, signal_count_threshold, parameters, log)
         anchors = __defineAnchorProperties(anchor_ions, ions, log)
         anchors, anchor_ions, ions = __reorderAnchorsAndIons(
@@ -20,7 +30,8 @@ def defineFromIons(ions, parameters, log, save=True, remove_noise=True):
             anchor_ions,
             ions,
             signal_count_threshold,
-            log
+            log,
+            order_anchors
         )
         if save:
             # src.io.saveArray(anchors, "ANCHORS_FILE_NAME", parameters, log)
@@ -47,9 +58,11 @@ def __matchIonsToAnchors(ions, signal_count_threshold, parameters, log):
     if signal_count_threshold > 0:
         log.printMessage("Skipping noisy aggregate ions")
         anchor_sizes = np.diff(anchor_ions.indptr)
+        anchor_ions.data += 1
         anchor_ions = anchor_ions[
             anchor_sizes >= signal_count_threshold
         ]
+        anchor_ions.data -= 1
         log.printMessage(
             "Retained {} aggregate ions of which {} are fully reproducible".format(
                 anchor_ions.shape[0],
@@ -75,9 +88,6 @@ def __defineAnchorProperties(anchor_ions, ions, log=None):
     anchors["ION_COUNT"] = np.diff(anchor_ions.indptr)
     anchors["LE"] = ions["LE"][anchor_ions.indptr[:-1]]
     tmp_attributes = anchor_ions.copy()
-    # tmp_attributes.data = ions["LE"][anchor_ions.data]
-    # attribute_row_sums = tmp_attributes.sum(axis=1).A1
-    # anchors["LE"] = attribute_row_sums > 0
     for attribute in [
         "MZ",
         "RT",
@@ -97,18 +107,21 @@ def __reorderAnchorsAndIons(
     anchor_ions,
     ions,
     signal_count_threshold,
-    log
+    log,
+    order_anchors=True
 ):
     log.printMessage("Reordering anchors and ions")
     anchor_order = np.argsort(anchors["MZ"])
     anchors = anchors[anchor_order]
+    anchor_ions.data += 1
     anchor_ions = anchor_ions[anchor_order]
+    anchor_ions.data -= 1
     ions["AGGREGATE_INDEX"] = -1
     ions["AGGREGATE_INDEX"][anchor_ions.data] = np.repeat(
         np.arange(len(anchors)),
         np.diff(anchor_ions.indptr)
     )
-    if signal_count_threshold > 1:
+    if signal_count_threshold > 0:
         log.printMessage("Removing noisy ions")
         ions = ions[ions["AGGREGATE_INDEX"] > -1]
         anchor_ions.data = np.argsort(np.argsort(anchor_ions.data))

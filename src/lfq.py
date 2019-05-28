@@ -3681,3 +3681,73 @@ for sample in range(parameters["SAMPLE_COUNT"]):
             )
         )
         counts[ion_index, sample] = ion_neighbor_count
+
+
+
+
+
+
+
+
+
+file_name = "/media/proteomics/MISC/Sander/APEX/20130423_Tenzer_UDMSE_LFQ_apex2d/5/func002.csv"
+data = pd.read_csv(file_name, sep=",").values
+
+
+def xic_old(data, mz, dt, mz_ppm=10, dt_err=1):
+    RT = 2
+    MZ = 3
+    DT = 5
+    INT = 9
+    l = data[:, MZ] > mz * (1 - mz_ppm / 1000000)
+    l &= data[:, MZ] < mz * (1 + mz_ppm / 1000000)
+    l &= data[:, DT] > dt - dt_err
+    l &= data[:, DT] < dt + dt_err
+    s = data[l]
+    plt.show(plt.plot(s[:, RT], s[:, INT], marker="."))
+
+
+def xic(data, mz, dt, mz_ppm=10, dt_err=1):
+    RT = 2
+    MZ = 3
+    DT = 5
+    INT = 9
+    l = data[:, MZ] > mz * (1 - mz_ppm / 1000000)
+    l &= data[:, MZ] < mz * (1 + mz_ppm / 1000000)
+    l &= data[:, DT] > dt - dt_err
+    l &= data[:, DT] < dt + dt_err
+    s = data[l]
+    rts = np.concatenate([[-1], s[:, RT], [-1]])
+    ints = np.cumsum(np.concatenate([[0, 0], s[:, INT], [0]]))
+    x = np.flatnonzero(np.diff(rts) != 0)
+    y = np.diff(ints[x])
+    x = rts[x[1:]]
+    plt.show(plt.plot(x, y, marker="."))
+
+
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.cm
+import matplotlib.colors
+
+def rtdt(data, mz, dt, rt, mz_ppm=10, dt_err=1, rt_err=1):
+    RT = 2
+    MZ = 3
+    DT = 5
+    INT = 9
+    l = data[:, MZ] > mz * (1 - mz_ppm / 1000000)
+    l &= data[:, MZ] < mz * (1 + mz_ppm / 1000000)
+    l &= data[:, DT] > dt - dt_err
+    l &= data[:, DT] < dt + dt_err
+    l &= data[:, RT] > rt - rt_err
+    l &= data[:, RT] < rt + rt_err
+    s = data[l]
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    colors = matplotlib.cm.ScalarMappable(
+        norm=matplotlib.colors.Normalize(
+            np.min(s[:, INT]),
+            np.max(s[:, INT])
+        ),
+        cmap="RdYlGn"
+    ).to_rgba(s[:, INT])
+    plt.show(ax.scatter(s[:, RT], s[:, DT], s[:, MZ], c=colors))
