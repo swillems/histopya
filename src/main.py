@@ -19,6 +19,12 @@ def main(parameters):
                 parameters,
                 log
             )
+            src.io.saveArray(
+                ions[pseudo_aggregate_ions_indices],
+                "PSEUDO_AGGREGATE_IONS_FILE_NAME",
+                parameters,
+                log
+            )
             estimation_aggregates = ions[pseudo_aggregate_ions_indices][1::2]
             ion_alignment_parameters = src.ions.estimateAlignmentParameters(
                 estimation_aggregates,
@@ -349,6 +355,9 @@ def runSingleWorkflowStep(
 
 # taskset -c 0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62,64,66,68,70,72,74,76,78,80,82,84,86 wine64 /media/proteomics/MISC/Sander/UW/UniversalWorkflow_Software/Apx2D/Apex2D_v3.1.0.9.5/Apex3D64.exe -pRawDirName /media/proteomics/RAW/External/20130423_Tenzer_UDMSE_LFQ/S130423_05.raw -outputDirName /media/proteomics/MISC/Sander/APEX/20130423_Tenzer_UDMSE_LFQ_apex2d -lockMassZ2 785.8426 -lockmassToleranceAMU 0.25 -bCSVOutput 1 -writeFuncCsvFiles 1 -leThresholdCounts 1 -heThresholdCounts 1 -apexTrackSNRThreshold 1 -leCentroidThresholdCounts 1 -heCentroidThresholdCounts 1 -startingRTMin 95 -endingRTMin 99
 
+
+
+# for i in {10..14}; do taskset -c 0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62,64,66,68,70,72,74,76,78,80,82,84,86 wine64 /media/proteomics/MISC/Sander/UW/UniversalWorkflow_Software/Apx2D/Apex2D_v3.1.0.9.5/Apex3D64.exe -pRawDirName /media/proteomics/RAW/External/20130423_Tenzer_UDMSE_LFQ/S130423_"$i".raw -outputDirName /media/proteomics/MISC/Sander/APEX/20130423_Tenzer_UDMSE_LFQ_apex2d/"$i" -lockMassZ2 785.8426 -lockmassToleranceAMU 0.25 -bCSVOutput 1 -writeFuncCsvFiles 1 -leThresholdCounts 1 -heThresholdCounts 1 -apexTrackSNRThreshold 1 -leCentroidThresholdCounts 1 -heCentroidThresholdCounts 1; done
 
 # for i in {1..5}; do taskset -c 0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62,64,66,68,70,72,74,76,78,80,82,84,86 wine64 /media/proteomics/MISC/Sander/UW/UniversalWorkflow_Software/Apx2D/Apex2D_v3.1.0.9.5/Apex3D64.exe -pRawDirName "/media/proteomics/Thesis 2019/RAW data/190513_SynaptData/190508_ProteomeComparison_K562_0"$i"_A.raw" -outputDirName /media/proteomics/MISC/Sander/APEX/20190508_Thesis -lockMassZ2 785.8426 -lockmassToleranceAMU 0.25 -bCSVOutput 1 -writeFuncCsvFiles 0 -bEnableCentroids 0; done
 

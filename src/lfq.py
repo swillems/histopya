@@ -172,89 +172,6 @@ elif sample_types == "swath":
         "QC": slice(6, None)
     }
 
-anchors_per_condition = {}
-anchor_ions_per_condition = {}
-
-sample_ions = anchor_ions.T.tocsr()
-for condition, condition_slice in conditions.items():
-    condition_anchors = np.empty(
-        len(anchors),
-        dtype=[
-            ("INTENSITY", np.float),
-            ("CV", np.float),
-            ("ION_COUNT", np.int),
-        ]
-    )
-    condition_anchor_ions = sample_ions[condition_slice].T.tocsr()
-    anchor_sizes = np.diff(condition_anchor_ions.indptr)
-    intensities = np.zeros(len(anchors), dtype=np.float)
-    cvs = np.zeros(len(anchors), dtype=np.float)
-    for size in range(1, np.max(anchor_sizes) + 1):
-        anchor_subset = np.flatnonzero(anchor_sizes == size)
-        anchor_subset_matrix = np.concatenate(
-            [
-                condition_anchor_ions.data[
-                    condition_anchor_ions.indptr[anchor_index]: condition_anchor_ions.indptr[anchor_index + 1]
-                ] for anchor_index in anchor_subset
-            ]
-        ).reshape(-1, size)
-        intensity_matrix = ions["CALIBRATED_INTENSITY"][anchor_subset_matrix]
-        cvs[anchor_subset] = scipy.stats.variation(intensity_matrix, axis=1)
-        intensities[anchor_subset] = np.average(intensity_matrix, axis=1)
-    condition_anchors["ION_COUNT"] = anchor_sizes
-    condition_anchors["CV"] = cvs
-    condition_anchors["INTENSITY"] = intensities
-    anchors_per_condition[condition] = condition_anchors
-    anchor_ions_per_condition[condition] = condition_anchor_ions
-
-
-
-anchors_per_condition["QC"] = {
-    "INTENSITY": anchors_per_condition["A"]["INTENSITY"] + anchors_per_condition["B"]["INTENSITY"]
-}
-
-
-
-plt.show(
-    [
-        plt.boxplot(
-            [
-                np.log2(
-                    anchors_per_condition["QC"]["INTENSITY"][
-                        anchors["ION_COUNT"] == i
-                    ]
-                ) for i in range(
-                    1,
-                    parameters["SAMPLE_COUNT"] + 1
-                )
-            ]
-        ),
-        plt.xlabel("Aggregate ion count"),
-        plt.ylabel("Average log2(intensity)"),
-    ]
-)
-
-plt.show(
-    [
-        plt.plot(
-            *np.unique(
-                anchors["ION_COUNT"],
-                return_counts=True
-            )
-        ),
-        plt.xlim((1, parameters["SAMPLE_COUNT"] + 1))
-    ]
-)
-
-# plt.show(
-#     plt.boxplot(
-#         [
-#             anchors_per_condition["QC"]["CV"][
-#                 anchors_per_condition["QC"]["ION_COUNT"] == i
-#             ] for i in range(10)
-#         ]
-#     )
-# )
 
 for condition in conditions.keys():
     condition_anchors = anchors_per_condition[condition]
@@ -288,227 +205,6 @@ for condition in conditions.keys():
     plt.show()
 
 
-logfcs = np.log(anchors_per_condition["A"]["INTENSITY"] / anchors_per_condition["B"]["INTENSITY"])
-# good_indices = anchors_per_condition["A"]["ION_COUNT"] > 0
-# good_indices &= anchors_per_condition["B"]["ION_COUNT"] > 0
-
-organism_classification = [
-    np.unique(
-        np.round(
-            logfcs[
-                (
-                    anchors_per_condition["A"]["ION_COUNT"] > i
-                ) & (
-                    anchors_per_condition["B"]["ION_COUNT"] > i
-                ) #& anchors["LE"]
-            ],
-            1
-        ),
-        return_counts=True
-    ) for i in range(9 + 1)
-]
-plt.show(
-    [
-        plt.plot(
-            a, b, marker="."
-        ) for (a, b) in organism_classification
-    ] + [
-        plt.legend(
-            [
-                "Found in at least {} samples of both condition A and B".format(
-                    i
-                ) for i in range(1, 9 + 1)
-            ]
-        ),
-        plt.xlabel("LogFC(A/B)"),
-        plt.ylabel("Frequency"),
-    ]
-)
-
-
-classes = np.round(logfcs)
-
-np.unique(classes[~np.isnan(classes)], return_counts=True)
-
-a_indices, b_indices = neighbors.nonzero()
-overlap = neighbors.data
-
-a_classes = classes[a_indices]
-b_classes = classes[b_indices]
-c = np.in1d(a_classes, [-2, 0, 1])
-c &= np.in1d(b_classes, [-2, 0, 1])
-a_classes = a_classes[c]
-b_classes = b_classes[c]
-a_indices = a_indices[c]
-b_indices = b_indices[c]
-overlap = neighbors.data[c]
-
-groups = np.array(
-    [
-        np.flatnonzero((overlap == i)) for i in range(
-            2, parameters["SAMPLE_COUNT"] + 1
-        )
-    ]
-)
-
-# groups = np.array(
-#     [
-#         np.flatnonzero(
-#             (overlap == 10) & (np.round(
-#                 anchors["CALIBRATED_LOGINT"][a_indices]
-#             ) == i) & ~anchors["LE"][a_indices]
-#         ) for i in range(
-#             0, 25
-#         )
-#     ]
-# )
-
-group_sizes = np.array([len(i) for i in groups])
-
-equal_classes = np.array(
-    [
-        np.sum(a_classes[i] == b_classes[i]) for i in groups
-    ]
-)
-
-yeast_class = np.array(
-    [
-        (np.sum(a_classes[i] == 1) + np.sum(b_classes[i] == 1)) / 2 for i in groups
-    ]
-)
-
-ecoli_class = np.array(
-    [
-        (np.sum(a_classes[i] == -2) + np.sum(b_classes[i] == -2)) / 2 for i in groups
-    ]
-)
-
-human_class = np.array(
-    [
-        (np.sum(a_classes[i] == 0) + np.sum(b_classes[i] == 0)) / 2 for i in groups
-    ]
-)
-
-expected_classes = np.array(
-    [
-        (a**2 + b**2 + c**2) / t**2 for a, b, c, t in zip(
-            yeast_class,
-            ecoli_class,
-            human_class,
-            group_sizes
-        )
-    ]
-)
-
-groupsize_plot = plt.plot(group_sizes / np.max(group_sizes))
-yeast_plot = plt.plot(yeast_class / group_sizes)
-ecoli_plot = plt.plot(ecoli_class / group_sizes)
-human_plot = plt.plot(human_class / group_sizes)
-equal_plot = plt.plot(equal_classes / group_sizes)
-expected_plot = plt.plot(expected_classes)
-plt.legend(
-    ["group_sizes", "yeast", "ecoli", "human", "equal", "expected"],
-)
-# plt.xticks(range(25), range(0,25))
-plt.xticks(range(parameters["SAMPLE_COUNT"] - 1), range(2, parameters["SAMPLE_COUNT"] + 1))
-plt.show()
-
-
-
-
-
-eco1 = np.zeros(parameters["SAMPLE_COUNT"] + 1)
-yea1 = np.zeros(parameters["SAMPLE_COUNT"] + 1)
-hum1 = np.zeros(parameters["SAMPLE_COUNT"] + 1)
-eco2 = np.zeros(parameters["SAMPLE_COUNT"] + 1)
-yea2 = np.zeros(parameters["SAMPLE_COUNT"] + 1)
-hum2 = np.zeros(parameters["SAMPLE_COUNT"] + 1)
-for i in range(2, parameters["SAMPLE_COUNT"] + 1):
-    print("overlap", i)
-    full_overlap = overlap==i
-    a_full = a_classes[full_overlap]
-    b_full = b_classes[full_overlap]
-    ecoli, human, yeast = np.unique(np.concatenate([a_full, b_full]), return_counts=True)[1]
-    total = ecoli + human + yeast
-    ecoli_ratio = ecoli / total
-    human_ratio = human / total
-    yeast_ratio = yeast / total
-    ecoli_expected = ecoli_ratio * ecoli_ratio
-    human_expected = human_ratio * human_ratio
-    yeast_expected = yeast_ratio * yeast_ratio
-    equal = a_full == b_full
-    ecoli_hits = equal[(a_full == -2) | (a_full == -2)]
-    human_hits = equal[(a_full == 0) | (a_full == 0)]
-    yeast_hits = equal[(a_full == 1) | (a_full == 1) ]
-    ecoli_hit_ratio = 2 * np.sum(ecoli_hits) / total
-    yeast_hit_ratio = 2 * np.sum(yeast_hits) / total
-    human_hit_ratio = 2 * np.sum(human_hits) / total
-    print("ecoli", ecoli_hit_ratio / ecoli_expected)
-    print("human", human_hit_ratio / human_expected)
-    print("yeast", yeast_hit_ratio / yeast_expected)
-    eco1[i] = ecoli_hit_ratio / ecoli_ratio
-    yea1[i] = yeast_hit_ratio / yeast_ratio
-    hum1[i] = human_hit_ratio / human_ratio
-    eco2[i] = ecoli_expected / ecoli_ratio
-    yea2[i] = yeast_expected / yeast_ratio
-    hum2[i] = human_expected / human_ratio
-    print("******************")
-
-
-e_ex, = plt.plot(eco1, marker="o", linestyle="-", c="red")
-h_ex, = plt.plot(hum1, marker="o", linestyle="-", c="grey")
-y_ex, = plt.plot(yea1, marker="o", linestyle="-", c="green")
-e_th, = plt.plot(eco2, marker=".", linestyle=":", c="red")
-h_th, = plt.plot(hum2, marker=".", linestyle=":", c="grey")
-y_th, = plt.plot(yea2, marker=".", linestyle=":", c="green")
-plt.legend(
-    (
-        e_ex,
-        h_ex,
-        y_ex,
-        e_th,
-        h_th,
-        y_th
-    ), (
-        "Ecoli experimental",
-        "Human experimental",
-        "Yeast experimental",
-        "Ecoli theoretical",
-        "Human theoretical",
-        "Yeast theoretical"
-    )
-)
-plt.xlabel("Sample count")
-plt.ylabel("% correctly aligned")
-plt.show()
-
-
-
-
-a_indices, b_indices = neighbors.nonzero()
-overlap = neighbors.data
-avg_intensity = anchors_per_condition["A"]["INTENSITY"] + anchors_per_condition["B"]["INTENSITY"]
-
-a_logfc = logfcs[a_indices]
-b_logfc = logfcs[b_indices]
-logfc_diffs = a_logfc - b_logfc
-c = np.isinf(logfc_diffs)
-c |= np.isnan(logfc_diffs)
-# c |= avg_intensity[a_indices] < 1000
-# c |= avg_intensity[a_indices] > 10000
-c |= np.round(a_logfc) == 0
-c |= np.round(b_logfc) == 0
-a_logfc = a_logfc[~c]
-b_logfc = b_logfc[~c]
-logfc_diffs = logfc_diffs[~c]
-overlap = overlap[~c]
-
-logfc_diffs_round = np.round(logfc_diffs, 2)
-for i in range(2, parameters["SAMPLE_COUNT"] + 1):
-    a, b = np.unique(np.abs(logfc_diffs_round[overlap == i]), return_counts=True)
-    plt.plot(a, np.cumsum(b) / sum(b), marker=".")
-
-plt.show()
 
 
 
@@ -522,30 +218,6 @@ plt.show()
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-ambiguous = np.array(
-    [
-        len(s) != len(np.unique(s)) for s in [
-            np.concatenate(
-                [
-                    anchor_ions.indices[
-                        anchor_ions.indptr[anchor]: anchor_ions.indptr[anchor + 1]
-                    ] for anchor in anchor_group
-                ]
-            ) for anchor_group in anchor_groups
-        ]
-    ]
-)
 
 
 
@@ -889,67 +561,10 @@ anchor_mass = (
 
 
 
-# for i in range(spectrum_anchors.shape[0]):
-#     a = spectrum_anchors[i].indices
-#     if len(a) < 5:
-#         continue
-#     for anchor in anchors[a]:
-#         tmp = plt.plot(
-#             [anchor["CALIBRATED_MZ"]]*2,
-#             [0, 2**anchor["CALIBRATED_LOGINT"]],
-#             c="black"
-#         )
-#     plt.get_current_fig_manager().resize(width=1920, height=1080)
-#     plt.show()
-    # plt.show(plt.line(anchors["CALIBRATED_MZ"][a], 2**anchors["CALIBRATED_LOGINT"][a]))
-    # input(np.sort(anchors[a]))
 
 
-aas = {
-    "G": 57.021464,
-    "A": 71.037114,
-    "S": 87.032028,
-    "P": 97.052764,
-    "V": 99.068414,
-    "T": 101.047679,
-    "C": 103.009185 + 57.021464, # + carbamido = 160.030649
-    "I": 113.084064,
-    "L": 113.084064,
-    "N": 114.042927,
-    "D": 115.026943,
-    "Q": 128.058578,
-    "K": 128.094963,
-    "E": 129.042593,
-    "M": 131.040485,
-    "H": 137.058912,
-    "F": 147.068414,
-    "R": 156.101111,
-    "Y": 163.063329,
-    "W": 186.079313,
-}
 
 
-for s in spectra:
-    if len(s) < 2:
-        continue
-    a = am[s]
-    m = anchor_mass[a]
-    diffs = m[:,np.newaxis] - m
-    sums = m[:,np.newaxis] + m
-    sums, sum_counts = np.unique(np.round(sums.flatten(), 2), return_counts=True)
-    max_ind = np.argmax(sum_counts)
-    np.diff(np.sort(m))
-    np.sort(m)
-    if sum_counts[max_ind] >= 4:
-        sums[max_ind], sum_counts[max_ind], np.any(np.abs(m - sums[max_ind]) < 0.1)
-    for anchor, mass in zip(anchors[a], m):
-        tmp = plt.plot(
-            [mass]*2,
-            [0, 2**anchor["CALIBRATED_LOGINT"]],
-            c="black"
-        )
-    plt.get_current_fig_manager().resize(width=1920, height=1080)
-    plt.show()
 
 
 
@@ -985,802 +600,6 @@ for s in spectra:
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# logpid() { while sleep 1; do ps -p $1 -o pcpu= -o pmem= ; done; }
-# src/main.py -p data/test/parameters.json & logpid $! > log_cpu.txt
-
-
-# import psutil
-# pid = 4384
-# psutil.pid_exists(pid)
-# p = psutil.Process(pid)
-# sum(i.cpu_percent(interval=0.1) for i in p.children(recursive=True))+p.cpu_percent(interval=0.1)
-# sum(i.memory_percent(memtype="pss") for i in p.children(recursive=True))+p.memory_percent(memtype="pss")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#
-#
-#
-# fragment_mzs = np.concatenate(
-#     [
-#         fragments["Y_MR"] + base_mass_dict["atoms"]["H+"],
-#         fragments["B_MR"] + base_mass_dict["atoms"]["H+"],
-#     ]
-# )
-# fragment_peptide_indices = np.concatenate(
-#     [fragments["PEPTIDE"]] * 2
-# )
-# order = np.flatnonzero(fragment_mzs > base_mass_dict["atoms"]["H+"])
-# order = order[np.argsort(fragment_mzs[order])]
-# fragment_mzs = fragment_mzs[order]
-# fragment_peptide_indices = fragment_peptide_indices[order]
-# # Id
-# ppm = 20
-# process_count = parameters["CPU_COUNT"]
-# order = np.flatnonzero((np.diff(neighbors.indptr) >= 2) & (~anchors["LE"]))
-# order = order[np.argsort(anchors["MZ"][order])]
-# anchor_boundaries = np.zeros((len(anchors), 2), dtype=np.int)
-#
-#
-# def getAnchorBounds(target_mzs, query_mzs, ppm):
-#     hit_lower_boundaries = np.searchsorted(
-#         target_mzs,
-#         query_mzs * (1 - ppm / 1000000),
-#         "left"
-#     )
-#     hit_upper_boundaries = np.searchsorted(
-#         target_mzs,
-#         query_mzs * (1 + ppm / 1000000),
-#         "right"
-#     )
-#     # d = hit_upper_boundaries - hit_lower_boundaries
-#     anchor_boundaries = np.stack(
-#         [
-#             hit_lower_boundaries,
-#             hit_upper_boundaries
-#         ]
-#     ).T
-#     return anchor_boundaries
-#
-#
-# anchor_boundaries[order] = getAnchorBounds(
-#     fragment_mzs,
-#     anchors["MZ"][order],
-#     ppm
-# )
-# anchor_indices = np.flatnonzero(
-#     anchor_boundaries[:, 1] - anchor_boundaries[:, 0] >= 3 # TODO 3 are needed: 1 target and 2 for regression
-# )
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# def multiprocessedAnnotatePerFragment(kwargs):
-#     in_queue = kwargs['in_queue']
-#     out_queue = kwargs['out_queue']
-#     neighbors = kwargs['neighbors']
-#     anchor_indices = kwargs['anchor_indices']
-#     anchor_boundaries = kwargs['anchor_boundaries']
-#     fragment_peptide_indices = kwargs['fragment_peptide_indices']
-#     anchor_len = kwargs['anchor_len']
-#     peptide_len = kwargs['peptide_len']
-#     selected_anchor_indices = in_queue.get()
-#     anchor_peptide_score = scipy.sparse.dok_matrix(
-#         (anchor_len, peptide_len),
-#         dtype=np.float
-#     )
-#     anchor_peptide_match_counts = scipy.sparse.dok_matrix(
-#         (anchor_len, peptide_len),
-#         dtype=np.int
-#     )
-#     # anchor_evidence = scipy.sparse.dok_matrix(
-#     #     neighbors.shape,
-#     #     dtype=np.int
-#     # )
-#     for selected_anchor_index in selected_anchor_indices:
-#         anchor_index = anchor_indices[selected_anchor_index]
-#         anchor_candidates = fragment_peptide_indices[
-#             slice(*anchor_boundaries[anchor_index])
-#         ]
-#         anchor_neighbors = neighbors.indices[
-#             neighbors.indptr[anchor_index]: neighbors.indptr[anchor_index + 1]
-#         ]
-#         raw_neighbor_candidates = np.concatenate(
-#             [
-#                 fragment_peptide_indices[
-#                     slice(*anchor_boundaries[n])
-#                 ] for n in anchor_neighbors
-#             ]
-#         )
-#         neighbor_candidates = raw_neighbor_candidates[
-#             np.isin(
-#                 raw_neighbor_candidates,
-#                 anchor_candidates
-#             )
-#         ]
-#         candidates, candidate_counts = np.unique(
-#             neighbor_candidates,
-#             return_counts=True
-#         )
-#         counts, frequency = np.unique(
-#             candidate_counts,
-#             return_counts=True
-#         )
-#         if (len(frequency) < 2):# or frequency[-1] != 1: # TODO delete
-#             continue
-#         counts = np.concatenate([[0], counts])
-#         frequency = np.concatenate(
-#             [
-#                 [len(anchor_candidates)],
-#                 np.cumsum(frequency[::-1])[::-1]
-#             ]
-#         )
-#         ransac = linear_model.RANSACRegressor()
-#         try:
-#             tmp = ransac.fit(
-#                 counts.reshape(-1, 1)[:-1],
-#                 np.log(frequency).reshape(-1, 1)[:-1]
-#             )
-#         except ValueError:
-#             continue
-#         score = -ransac.predict(counts[-1])[0][0]
-#         # if score > 0:
-#         if True:
-#         #     plt.plot(counts, log_count_frequency, marker="o")
-#         #     plt.plot(counts, [ransac.predict(i)[0][0] for i in counts], marker="o")
-#         #     plt.show()
-#             # peptide_index = candidates[candidate_counts == counts[-1]][0]
-#             # anchor_peptide_score[anchor_index, peptide_index] = score
-#             peptide_indices = candidates[candidate_counts == counts[-1]]
-#             anchor_peptide_score[anchor_index, peptide_indices] = score
-#             anchor_peptide_match_counts[anchor_index, peptide_indices] = counts[-1]
-#             # anchor_evidence[
-#             #     anchor_index,
-#             #     anchor_neighbors
-#             # ] = 1
-#             # neighbor_indices = np.repeat(
-#             #     anchor_neighbors,
-#             #     np.diff(anchor_boundaries[anchor_neighbors], axis=1).flatten()
-#             # )
-#             # anchor_evidence[
-#             #     anchor_index,
-#             #     # neighbor_indices[raw_neighbor_candidates == peptide_index],
-#             #     neighbor_indices[np.isin(raw_neighbor_candidates, peptide_indices)],
-#             # ] = 2
-#             # anchor_evidence[
-#             #     anchor_index,
-#             #     anchor_index
-#             # ] = 3
-#     out_queue.put(
-#         # (anchor_peptide_score.tocsr(), anchor_evidence.tocsr())
-#         (anchor_peptide_score.tocsr(), anchor_peptide_match_counts.tocsr())
-#     )
-#     out_queue.put(None)
-#
-#
-#
-#
-# from sklearn import linear_model
-# in_queue = mp.partitionedQueue(anchor_indices, process_count)
-# anchor_peptide_scores = scipy.sparse.csr_matrix(
-#     (len(anchors), len(peptides)),
-#     dtype=np.float
-# )
-# anchor_peptide_match_counts = scipy.sparse.csr_matrix(
-#     (len(anchors), len(peptides)),
-#     dtype=np.int
-# )
-# for partial_anchor_peptide_scores, partial_anchor_match_counts in mp.parallelizedGenerator(
-#     function=multiprocessedAnnotatePerFragment,
-#     function_args={
-#         'in_queue': in_queue,
-#         'neighbors': neighbors,
-#         'anchor_indices': anchor_indices,
-#         'anchor_boundaries': anchor_boundaries,
-#         'fragment_peptide_indices': fragment_peptide_indices,
-#         'anchor_len': len(anchors),
-#         'peptide_len': len(peptides)
-#     },
-#     process_count=process_count,
-# ):
-#     anchor_peptide_scores += partial_anchor_peptide_scores
-#     anchor_peptide_match_counts += partial_anchor_match_counts
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# peptide_mrs = peptide_masses
-# peptide_order = np.argsort(peptide_mrs)
-#
-#
-# ppm = 10
-# max_precursor_charge = 3
-# process_count = parameters["CPU_COUNT"]
-# order = np.flatnonzero((np.diff(neighbors.indptr) >= 2) & anchors["LE"])
-# anchor_mzs = np.concatenate(
-#     [
-#         (anchors["MZ"][order] - base_mass_dict["atoms"]["H+"]) * i for i in range(
-#             1,
-#             max_precursor_charge + 1
-#         )
-#     ]
-# )
-# anchor_order = np.concatenate(
-#     [order] * max_precursor_charge
-# )
-# order = np.argsort(anchor_mzs)
-# anchor_mzs = anchor_mzs[order]
-# # anchor_zs = anchor_zs[order]
-# anchor_order = anchor_order[order]
-#
-#
-# peptide_boundaries = np.zeros((len(peptides), 2), dtype=np.int)
-# peptide_boundaries[peptide_order] = getAnchorBounds(
-#     anchor_mzs,
-#     peptide_mrs[peptide_order],
-#     ppm
-# )
-#
-#
-# order = order[np.argsort(anchors["MZ"][order])]
-# anchor_boundaries = np.zeros((len(anchors), 2), dtype=np.int)
-# anchor_boundaries[order] = getAnchorBounds(
-#     fragment_mzs,
-#     anchors["MZ"][order],
-#     ppm
-# )
-#
-#
-# anchor_peptide_scores2 = anchor_peptide_match_counts.astype(np.bool)
-# anchor_peptide_scores2 += anchor_peptide_scores
-# anchor_peptide_scores2.data -= 1
-#
-# match_scores = anchor_peptide_match_counts.data
-# scores = anchor_peptide_scores2.data
-# selected_anchor_indices, selected_peptide_indices = anchor_peptide_match_counts.nonzero()
-# max_rt_difference = 0.05
-# dt_shifts = []
-# precursor_indices = []
-# # precursor_charges = []
-# for (anchor_index, peptide_index) in zip(selected_anchor_indices, selected_peptide_indices):
-#     anchor = anchors[anchor_index]
-#     candidate_precursor_anchors = anchor_order[
-#         slice(*peptide_boundaries[peptide_index])
-#     ]
-#     # candidate_precursor_charges = anchor_order[
-#     #     slice(*peptide_boundaries[peptide_index])
-#     # ]
-#     precursor_rt_difference = anchors["RT"][candidate_precursor_anchors] - anchor["RT"]
-#     good_candidates = np.abs(precursor_rt_difference) < max_rt_difference # TODO, consistent in all runs
-#     filtered_precursors = candidate_precursor_anchors[good_candidates]
-#     # filtered_charges = candidate_precursor_charges[good_candidates]
-#     if len(filtered_precursors) == 0:
-#         dt_shifts.append(999)
-#         precursor_indices.append(-1)
-#         # precursor_charges.append(-1)
-#         continue
-#     dt_difference = anchors["DT"][filtered_precursors] - anchor["DT"]
-#     min_dt_index = np.argmin(np.abs(dt_difference))
-#     dt_shifts.append(
-#         anchors["DT"][filtered_precursors[min_dt_index]] - anchor["DT"]
-#     )
-#     precursor_indices.append(filtered_precursors[min_dt_index])
-#     # precursor_charges.append(filtered_charges[min_dt_index])
-#
-# dt_shifts = np.array(dt_shifts)
-# precursor_indices = np.array(precursor_indices)
-# # precursor_charges = np.array(precursor_charges)
-#
-# selected_anchor_indices, selected_peptide_indices = anchor_peptide_match_counts.nonzero()
-# dt_filter = dt_shifts != 999
-# new_anchor_indices = selected_anchor_indices[dt_filter]
-# new_peptide_indices = selected_peptide_indices[dt_filter]
-# new_scores = scores[dt_filter]
-# new_match_scores = match_scores[dt_filter]
-# dt_shifts = dt_shifts[dt_filter]
-# precursor_indices = precursor_indices[dt_filter]
-#
-#
-# # new_unique_anchor_indices, counts = np.unique(new_anchor_indices,return_counts=True)
-# # unique_anchor_filter = np.isin(
-# #     new_anchor_indices,
-# #     new_unique_anchor_indices[counts==1]
-# # )
-# unique_anchor_filter = np.ones_like(new_anchor_indices, dtype=np.bool)
-# selected_anchor_indices = new_anchor_indices[unique_anchor_filter]
-# selected_peptide_indices = new_peptide_indices[unique_anchor_filter]
-# selected_anchor_scores = new_scores[unique_anchor_filter]
-# selected_anchor_match_scores = new_match_scores[unique_anchor_filter]
-# dt_shifts = dt_shifts[unique_anchor_filter]
-# precursor_indices = precursor_indices[unique_anchor_filter]
-#
-#
-#
-#
-#
-# peptide_fragment_borders = np.cumsum(
-#     np.concatenate(
-#         [
-#             [0],
-#             peptides["SIZE"]
-#         ]
-#     )
-# )
-# peptide_fragment_borders = np.stack(
-#     [
-#         peptide_fragment_borders[:-1],
-#         peptide_fragment_borders[1:]
-#     ]
-# ).T
-#
-#
-# # selected_anchor_indices, selected_peptide_indices = anchor_peptide_scores.nonzero()
-# # selected_anchor_scores = anchor_peptide_scores.data
-# # selected_raw_evidence_counts = np.diff((anchor_evidence[selected_anchor_indices] >= 1).indptr)
-# selected_raw_evidence_counts = np.diff(neighbors[selected_anchor_indices].indptr)
-# # selected_evidence_counts = np.diff((anchor_evidence[selected_anchor_indices] >= 2).indptr)
-# selected_evidence_counts = selected_anchor_match_scores
-#
-# data = []
-# import csv
-# with open(parameters["OUTPUT_PATH"] + "/181010_ion_spectra.csv", "w") as raw_outfile:
-#     outfile = csv.writer(raw_outfile, delimiter="\t")
-#     header = [
-#         "SpecId",
-#         "Label",
-#         "ScanNr",
-#         "rt",
-#         "dm",
-#         "matches",
-#         "score",
-#         "dt",
-#         "dt_drift",
-#         # "le",
-#         "anchor_count",
-#         "match_ratio",
-#         "anchor_mz",
-#         "ion_type",
-#         "precursor_mz",
-#         "precursor_z",
-#         "precursor_ppm",
-#         # "logFC",
-#         "Peptide",
-#         "Proteins",
-#     ]
-#     tmp = outfile.writerow(header)
-#     for index, anchor_index in enumerate(selected_anchor_indices):
-#         if not ((1.5 < dt_shifts[index]) & (dt_shifts[index] < 4)):
-#             continue
-#         anchor = anchors[anchor_index]
-#         peptide_index = selected_peptide_indices[index]
-#         peptide = peptides[peptide_index]
-#         precursor_index = precursor_indices[index]
-#         precursor = anchors[precursor_index]
-#         precursor_charge = int(round(peptide_masses[peptide_index] / precursor["MZ"]))
-#         precursor_mr = (
-#             precursor["MZ"] - base_mass_dict["atoms"]["H+"]
-#         ) * precursor_charge
-#         precursor_delta_mass = precursor_mr - peptide_masses[peptide_index]
-#         precursor_ppm = precursor_delta_mass / precursor_mr * 1000000
-#         selected_fragments = peptide_fragment_borders[peptide_index]
-#         selected_fragments = fragments[
-#             selected_fragments[0]: selected_fragments[1]
-#         ]
-#         dm_b = anchor["MZ"] - (selected_fragments["B_MR"] + base_mass_dict["atoms"]["H+"])
-#         dm_y = anchor["MZ"] - (selected_fragments["Y_MR"] + base_mass_dict["atoms"]["H+"])
-#         ion_type = np.concatenate(
-#             [
-#                 selected_fragments["B_INDEX"],
-#                 -selected_fragments["Y_INDEX"]
-#             ]
-#         )
-#         dm = np.concatenate([dm_b, dm_y])
-#         dm /= anchor["MZ"]
-#         dm *= 1000000
-#         dm_min = np.argmin(np.abs(dm))
-#         dm = dm[dm_min]
-#         ion_type = ion_type[dm_min]
-#         # protein_string = ";".join(
-#         #     proteins["ID"][
-#         #         peptide_protein_matrix.indices[
-#         #             peptide_protein_matrix.indptr[peptide_index]: peptide_protein_matrix.indptr[peptide_index + 1]
-#         #         ]
-#         #     ]
-#         # )
-#         protein_string = "TODO"
-#         peptide_start_index = peptide_index_matrix.indices[
-#             peptide_index_matrix.indptr[peptide_index]
-#         ]
-#         peptide_sequence = total_protein_sequence[
-#             peptide_start_index: peptide_start_index + peptide["SIZE"]
-#         ]
-#         row = [
-#             anchor_index,
-#             -1 if peptide["DECOY"] else 1,
-#             anchor_index,
-#             anchor["RT"],
-#             dm,
-#             selected_evidence_counts[index],
-#             selected_anchor_scores[index],
-#             anchor["DT"],
-#             dt_shifts[index],
-#             # 0 if anchor["LE"] else 1,
-#             selected_raw_evidence_counts[index],
-#             selected_evidence_counts[index] / selected_raw_evidence_counts[index],
-#             anchor["MZ"],
-#             ion_type,
-#             precursor["MZ"],
-#             precursor_charge,
-#             precursor_ppm,
-#             # diffs[anchor_index],
-#             "-.{}.-".format(peptide_sequence),
-#             # "PROTEIN",
-#             protein_string,
-#         ]
-#         tmp = outfile.writerow(row)
-#         data.append(row)
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# # i=29999;anchors[i];ions[anchor_ions[i].data]
-#
-# selected_anchor_ions = [
-#     np.concatenate(
-#         [
-#             anchor_ions.data[
-#                 anchor_ions.indptr[j]: anchor_ions.indptr[j + 1]
-#             ] for j in np.flatnonzero(anchors["ION_COUNT"] == i)
-#         ]
-#     ).reshape(-1, i) for i in range(3, parameters["SAMPLE_COUNT"] + 1)
-# ]
-# cvs_normal = [
-#     scipy.stats.variation(ions["INTENSITY"][m], axis=1) for m in selected_anchor_ions
-# ]
-# cvs_calibrated = [
-#     scipy.stats.variation(ions["CALIBRATED_INTENSITY"][m], axis=1) for m in selected_anchor_ions
-# ]
-# plt.show(plt.boxplot(cvs_normal))
-# plt.show(plt.boxplot(cvs_calibrated))
-# [
-#     plt.show(
-#         [
-#             plt.plot(
-#                 np.percentile(
-#                     a,
-#                     range(101)
-#                 )
-#             ),
-#             plt.plot(
-#                 np.percentile(
-#                     b,
-#                     range(101)
-#                 )
-#             )
-#         ]
-#     ) for a, b in zip(cvs_normal[::-1], cvs_calibrated[::-1])
-# ]
-#
-# avg_calibrated_logints = [
-#     np.log(np.average(ions["CALIBRATED_INTENSITY"][m], axis=1)) for m in selected_anchor_ions
-# ]
-# plt.show(plt.boxplot(avg_calibrated_logints))
-#
-# import seaborn as sns
-# plt.show(sns.jointplot(avg_calibrated_logints[-1][::100], cvs_calibrated[-1][::100], kind="kde"))
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
 # aas = src.io.loadJSON("AMINO_ACID_FILE_NAME", parameters)
 # aas["C"] += parameters["FIXED_MODIFICATIONS"]["C"]
 # aas["K"] += parameters["FIXED_MODIFICATIONS"]["K"]
@@ -2002,31 +821,16 @@ for attribute in [
 
 
 
-full_anchors = np.flatnonzero(anchors["ION_COUNT"] == parameters["SAMPLE_COUNT"])
 
-left_anchors, right_anchors = neighbors.nonzero()
 
-b = np.concatenate([np.array([0]), np.flatnonzero(np.diff(left_anchors) > 0)])
 
-good_pairs = np.isin(left_anchors, full_anchors)
-good_pairs &= np.isin(right_anchors, full_anchors)
 
-left_anchors = left_anchors[good_pairs]
-right_anchors = right_anchors[good_pairs]
 
-left_ion_set = anchor_ions[left_anchors].toarray()
-right_ion_set = anchor_ions[right_anchors].toarray()
-log_matched_intensities = np.log(ions["INTENSITY"])[np.stack([left_ion_set, right_ion_set], axis=1)]
 
-diffs = np.ptp(log_matched_intensities, axis=1)
-avg_diff = np.average(diffs, axis=1)
 
 
-centered_diffs = diffs - avg_diff.reshape(-1, 1)
 
-max_diffs = np.max(np.abs(centered_diffs),axis=1)
 
-relative_diffs = centered_diffs / max_diffs.reshape(-1, 1)
 
 
 
@@ -2060,326 +864,6 @@ relative_diffs = centered_diffs / max_diffs.reshape(-1, 1)
 
 
 
-
-
-
-
-
-
-
-
-
-
-selected = np.flatnonzero(
-    (
-        anchors["ION_COUNT"] == parameters["SAMPLE_COUNT"]
-    )
-)
-full_anchors = anchors[selected]
-full_anchor_ions = anchor_ions[selected].toarray()
-mz_error = ion_alignment_parameters["CALIBRATED_MZ"]
-rt_error = anchor_alignment_parameters["RT"]
-le_he_pairs = []
-upper_index = 1
-for lower_index, anchor in enumerate(full_anchors):
-    candidate_upper_mass = anchor["MZ"] * (1 + mz_error / 1000000)
-    try:
-        while full_anchors["MZ"][upper_index] <= candidate_upper_mass:
-            upper_index += 1
-    except IndexError:
-        upper_index = len(full_anchors)
-    candidates = np.flatnonzero(
-        full_anchors["LE"][lower_index: upper_index] != full_anchors["LE"][lower_index]
-    )
-    if len(candidates) == 0:
-        continue
-    aggregate_rts = ions["RT"][full_anchor_ions[lower_index]]
-    matching_rts = ions["RT"][full_anchor_ions[lower_index + candidates]]
-    matches = candidates[
-        np.all(
-            np.abs(matching_rts - aggregate_rts) < rt_error,
-            axis=1
-        )
-    ]
-    if len(matches) == 1:
-        if full_anchors["LE"][lower_index]:
-            le_anchor = lower_index
-            he_anchor = lower_index + matches[0]
-        else:
-            le_anchor = lower_index + matches[0]
-            he_anchor = lower_index
-        le_he_pairs.append((le_anchor, he_anchor))
-
-le_he_pairs = selected[np.array(le_he_pairs)]
-anchor_index, multiplicity = np.unique(le_he_pairs, return_counts=True)
-multiply_used_anchors = anchor_index[multiplicity > 1]
-le_he_pairs = le_he_pairs[
-    ~np.any(
-        np.isin(le_he_pairs, multiply_used_anchors),
-        axis=1
-    )
-]
-
-
-
-
-
-
-
-
-
-#
-# dt_diffs = np.diff(anchors["DT"][le_he_pairs], axis=1).ravel()
-# # dt_diffs -= np.median(dt_diffs)
-# mz_diffs = np.diff(anchors["MZ"][le_he_pairs], axis=1).ravel()
-# dts = anchors["DT"][le_he_pairs[:, 0]]
-# mzs = anchors["MZ"][le_he_pairs[:, 0]]
-#
-#
-#
-# # a, b = np.unique(np.round(mz_diffs / mzs * 1000000, 1), return_counts=True)
-# a, b = np.unique(np.round(dt_diffs, 1), return_counts=True)
-# plt.show(plt.plot(a, b, marker="."))
-# percentiles = np.percentile(dt_diffs, range(101))
-# relative_percentiles = np.percentile(dt_diffs / dts, range(101))
-# plt.show(plt.plot(percentiles))
-# plt.show(plt.plot(relative_percentiles))
-#
-# # x = dt_diffs > percentiles[10]
-# # x &= dt_diffs < percentiles[90]
-# x = dt_diffs / dts > relative_percentiles[10]
-# x &= dt_diffs / dts < relative_percentiles[90]
-# x &= dts < 190
-# x &= dts > 50
-# # plt.show(plt.scatter(mzs[x], dt_diffs[x] / dts[x], c=dt_diffs[x] / dts[x], cmap="RdYlGn", marker="."))
-# # plt.show(plt.scatter(mzs[x], mzs[x] / dts[x], c=dt_diffs[x] / dts[x], cmap="RdYlGn", marker="."))
-# plt.show(plt.scatter(dts[x], mzs[x], c=dt_diffs[x] / dts[x], cmap="RdYlGn", marker="."))
-#
-#
-#
-# import numpy as np
-# import matplotlib.pyplot as plt
-# from scipy.optimize import curve_fit
-#
-#
-# xdata = np.stack([dts, mzs])
-# ydata = 1000000 * dt_diffs / dts
-# # plt.show(plt.scatter(*xdata[:, x], c=ydata[x], cmap="RdYlGn", marker="."))
-#
-# def func(data, size_param, angle_param, ratio_param, constant):
-#     x = data[0]
-#     y = data[1]
-#     size = (np.sqrt(x**2 + y**2))
-#     angle = np.arctan(y / x)
-#     ratio = x / y
-#     return size_param * size + angle_param * angle + ratio_param * ratio + constant
-#     # return a * x + b * y + c * x * y + d
-#
-# popt, pcov = curve_fit(func, xdata[:, x][:,::2], ydata[x][::2])
-# ypred = func(xdata, *popt)
-# scipy.stats.pearsonr(ydata[x], ypred[x])
-#
-# # plt.show(plt.scatter(ydata[x], ypred[x], marker="."))
-# # plt.show(sns.jointplot(ydata[x], ypred[x], kind="hex"))
-# plt.show(plt.scatter(*xdata[:, x], c=ypred[x], cmap="RdYlGn", marker="."))
-# relative_dt_errors = (ypred[x][1::2] - ydata[x][1::2])
-# absolute_dt_errors = relative_dt_errors / 1000000 * dts[x][1::2]
-# plt.show(plt.scatter(dts[x][1::2], relative_dt_errors, marker="."))
-# plt.show(sns.jointplot(dts[x][1::2], relative_dt_errors, kind="hex"))
-# plt.show(plt.boxplot(absolute_dt_errors))
-# p = np.percentile(relative_dt_errors, range(101))
-# second_derivative_p = np.gradient(np.gradient(p))
-# plt.show(plt.plot(p, marker="."))
-#
-# new_dt = dts[x] + ypred[x] * dts[x]/1000000
-# new_dt_diff = (new_dt - ions["DT"][z[:, 1]][x]) / new_dt * 1000000
-# p = np.percentile(new_dt_diff, range(101))
-# plt.show(plt.plot(p, marker="."))
-#
-
-
-
-
-
-
-
-
-
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy.optimize import curve_fit
-
-
-def func(data, size_param, angle_param, ratio_param, constant):
-    x = data[0]
-    y = data[1]
-    size = (np.sqrt(x**2 + y**2))
-    angle = np.arctan(y / x)
-    ratio = x / y
-    return size_param * size + angle_param * angle + ratio_param * ratio + constant
-    # return a * x + b * y + c * x * y + d
-
-
-alldata = np.stack([ions["DT"], ions["CALIBRATED_MZ"]])
-shift_parameters = []
-new_pred = np.zeros(len(ions))
-for sample in range(parameters["SAMPLE_COUNT"]):
-    sample_ions = anchor_ions[le_he_pairs, sample].toarray()
-    dt_diffs = np.diff(ions["DT"][sample_ions], axis=1).ravel()
-    dts = ions["DT"][sample_ions[:, 0]]
-    mzs = ions["CALIBRATED_MZ"][sample_ions[:, 0]]
-    # # a, b = np.unique(np.round(mz_diffs / mzs * 1000000, 1), return_counts=True)
-    # a, b = np.unique(np.round(dt_diffs, 1), return_counts=True)
-    # plt.show(plt.plot(a, b, marker="."))
-    # percentiles = np.percentile(dt_diffs, range(101))
-    relative_percentiles = np.percentile(dt_diffs / dts, range(101))
-    # plt.show(plt.plot(percentiles))
-    # plt.show(plt.plot(relative_percentiles))
-    # x = dt_diffs > percentiles[10]
-    # x &= dt_diffs < percentiles[90]
-    x = dt_diffs / dts > relative_percentiles[10] # TODO adjustable parameters!
-    x &= dt_diffs / dts < relative_percentiles[90] # TODO adjustable parameters!
-    x &= dts < 190 # TODO adjustable parameters!
-    x &= dts > 50 # TODO adjustable parameters!
-    # plt.show(plt.scatter(mzs[x], dt_diffs[x] / dts[x], c=dt_diffs[x] / dts[x], cmap="RdYlGn", marker="."))
-    # plt.show(plt.scatter(mzs[x], mzs[x] / dts[x], c=dt_diffs[x] / dts[x], cmap="RdYlGn", marker="."))
-    # plt.show(plt.scatter(dts[x], mzs[x], c=dt_diffs[x] / dts[x], cmap="RdYlGn", marker="."))
-    xdata = np.stack([dts, mzs])
-    ydata = 1000000 * dt_diffs / dts
-    # plt.show(plt.scatter(*xdata[:, x], c=ydata[x], cmap="RdYlGn", marker="."))
-    popt, pcov = curve_fit(func, xdata[:, x][:,::2], ydata[x][::2])
-    shift_parameters.append(popt)
-    sample_indices = ions["SAMPLE"] == sample
-    sample_indices &= ions["LE"]
-    pred = func(alldata[:, sample_indices], *shift_parameters[sample])
-    new_pred[sample_indices] = pred
-    # ypred = func(xdata, *popt)
-    # scipy.stats.pearsonr(ydata[x], ypred[x])
-    # # plt.show(plt.scatter(ydata[x], ypred[x], marker="."))
-    # # plt.show(sns.jointplot(ydata[x], ypred[x], kind="hex"))
-    # plt.show(plt.scatter(*xdata[:, x], c=ypred[x], cmap="RdYlGn", marker="."))
-    # relative_dt_errors = (ypred[x][1::2] - ydata[x][1::2])
-    # absolute_dt_errors = relative_dt_errors / 1000000 * dts[x][1::2]
-    # plt.show(plt.scatter(dts[x][1::2], relative_dt_errors, marker="."))
-    # plt.show(sns.jointplot(dts[x][1::2], relative_dt_errors, kind="hex"))
-    # plt.show(plt.boxplot(absolute_dt_errors))
-    # p = np.percentile(relative_dt_errors, range(101))
-    # second_derivative_p = np.gradient(np.gradient(p))
-    # plt.show(plt.plot(p, marker="."))
-    # new_dt = dts[x] + ypred[x] * dts[x]/1000000
-    # new_dt_diff = (new_dt - ions["DT"][sample_ions[:, 1]][x]) / new_dt * 1000000
-    # p = np.percentile(new_dt_diff, range(101))
-    # plt.show(plt.plot(p, marker="."))
-
-
-new_dts = ions["DT"] * (1 + new_pred / 1000000)
-anchor_dts = anchor_ions.copy()
-anchor_dts.data = new_dts[anchor_dts.data]
-anchor_dts = anchor_dts.sum(axis=1).squeeze().A.squeeze() / anchors["ION_COUNT"]
-
-dt_diffs = (anchors["DT"] - anchor_dts) / anchors["DT"]
-x = dt_diffs < 0.04
-x &= dt_diffs > 0
-x &= anchors["LE"]
-x = np.flatnonzero(x)[::10]
-plt.show(plt.scatter(anchor_dts[x], anchors["MZ"][x], c=dt_diffs[x], cmap="RdYlGn", marker="."))
-plt.show(plt.scatter(anchor_dts[x], dt_diffs[x], c=dt_diffs[x], cmap="RdYlGn", marker="."))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# annotation_array = np.array(annotation_data)
-annotation_array = np.array(annotation_data[:200000])
-fps = np.cumsum(annotation_array[:, 1].astype(int)!=1)
-fdr = fps / np.arange(1, annotation_array.shape[0] + 1)
-
-fdr_threshold = 0.01
-
-annotation_array = annotation_array[:1 + np.flatnonzero(fdr < fdr_threshold)[-1]]
-annotation_array = annotation_array[annotation_array[:, 1].astype(int)==1]
-
-scores = annotation_array[:, -4].astype(float)
-organisms = np.array([x.split("_")[-1] if "_" in x else x for x in annotation_array[:, -1]])
-anchor_indices = annotation_array[:, 2].astype(int)
-organism_logfcs = logfcs[anchor_indices]
-qc_intensity = anchors_per_condition["QC"]["INTENSITY"][anchor_indices]
-# qc_intensity = anchors_per_condition["A"]["INTENSITY"][anchor_indices]
-organism_map = np.array(["YEAST", "HUMAN", "ECOLI", "UNKNOWN"])
-predicted_organism = np.array(
-    [
-        0 if i > .5 else (2 if i < -1 else 1) for i in organism_logfcs
-    ]
-)
-color_palette = np.array(["red", "blue", "green", "black"])
-color = np.array([np.flatnonzero(organism_map == i)[0] if i in organism_map else 3 for i in organisms])
-for c in np.unique(color):
-    organism = organism_map[c]
-    if organism == "UNKNOWN":
-        continue
-    elements = color == c
-    tmp = plt.scatter(
-        np.log2(qc_intensity[elements]),
-        organism_logfcs[elements],
-        marker=".",
-        c=color_palette[c],
-        label=organism
-    )
-    # finite = np.isfinite(organism_logfcs[elements])
-    # finite &= np.isfinite(np.log2(qc_intensity[elements]))
-    # plt.show(
-    #     sns.jointplot(
-    #         np.log2(qc_intensity[elements][finite]),
-    #         organism_logfcs[elements][finite],
-    #         kind="kde"
-    #     )
-    # )
-    # plt.show(plt.boxplot(organism_logfcs[elements][finite]))
-
-plt.axhline(.5)
-plt.axhline(-1)
-plt.axvline(15)
-plt.legend()
-plt.xlabel("Log(QC))")
-plt.ylabel("LogFC(A/B)")
-plt.show()
 
 
 
@@ -2665,83 +1149,6 @@ plt.show()
 
 
 
-a, b = neighbors.nonzero()
-c = anchors["LE"][a] != anchors["LE"][b]
-n = scipy.sparse.csr_matrix(
-    (
-        neighbors.data[c],
-        (
-            a[c],
-            b[c]
-        )
-    ),
-    shape=neighbors.shape,
-    dtype=np.bool
-)
-
-# n = n[anchors["LE"]]
-
-
-spectra = {
-    p: n.indices[
-        n.indptr[p]: n.indptr[p + 1]
-    ] for p in np.flatnonzero(
-        anchors["LE"] & (np.diff(n.indptr) > 10)
-    )
-}
-
-# for p, f in spectra.items():
-#     anchors[p]
-#     np.sort(anchors[f])
-#     neighbors[np.ix_(f,f)].nnz / len(f) ** 2
-#     input()
-
-
-anchor_intensities = anchor_ions.copy()
-anchor_intensities.data = ions["CALIBRATED_INTENSITY"][anchor_intensities.data]
-anchor_intensities = anchor_intensities.sum(axis=1).A.squeeze() / anchors["ION_COUNT"]
-with open(parameters["OUTPUT_PATH"] + "/test.mgf", "w") as outfile:
-    for spectrum_index, spectrum in sorted(spectra.items()):
-        tmp = outfile.write("BEGIN IONS\n")
-        tmp = outfile.write(
-            "TITLE=(index_{})(dt_{})(rt_{})\n".format(
-                spectrum_index,
-                anchors["DT"][spectrum_index],
-                anchors["RT"][spectrum_index],
-            )
-        )
-        tmp = outfile.write(
-            "SCANS={}\n".format(
-                spectrum_index
-            )
-        )
-        tmp = outfile.write(
-            "RTINSECONDS={}\n".format(
-                anchors["RT"][spectrum_index] * 60
-            )
-        )
-        tmp = outfile.write(
-            "PEPMASS={}\n".format(
-                # precursor_mz
-                # 1000
-                anchors["MZ"][spectrum_index]
-            )
-        )  # Defaults
-        for anchor_index in spectrum:
-            tmp = outfile.write(
-                "{} {}\n".format(
-                    anchors["MZ"][anchor_index],
-                    anchor_intensities[anchor_index]
-                    # raw_anchors[neighbor_anchor_index, ANCHOR_ION_COUNT]
-                )
-            )
-        tmp = outfile.write("END IONS\n")
-
-
-
-
-
-
 
 
 
@@ -2900,69 +1307,6 @@ plt.show()
 
 
 
-int_file_name = "/home/sander/Proteomics/histopya2/tmp/random/PeakView_TTOF6600_64w_shift_iRT_extractionWindow10min_30ppm.csv"
-fdr_file_name = "/home/sander/Proteomics/histopya2/tmp/random/PeakView_TTOF6600_64w_shift_iRT_extractionWindow10min_30ppm_FDRs.csv"
-fdrs = pd.read_csv(fdr_file_name).values
-intensities = pd.read_csv(int_file_name).values
-
-query_fdrs = fdrs[:, -6:].astype(float)
-peps = fdrs[np.any(query_fdrs, axis=1) < 0.01, 1].astype(str)
-
-target_peptides = intensities[:, 1].astype(str)
-targets = np.isin(target_peptides, peps)
-
-target_prots = intensities[targets,0].astype(str)
-target_species = np.array(
-    [
-        i.split("_")[-1] if "_" in i else "UNKNOWN" for i in target_prots
-    ]
-)
-target_peps = target_peptides[targets]
-target_intensities = intensities[targets, -6:].astype(float)
-
-organism_logfcs = np.log2(target_intensities[:, 0] / target_intensities[:,3])
-qc_intensity = np.log2((target_intensities[:, 0] + target_intensities[:,3]) / 2)
-
-organisms = target_species
-# qc_intensity = anchors_per_condition["A"]["INTENSITY"][anchor_indices]
-organism_map = np.array(["YEAS8", "HUMAN", "ECOLI", "UNKNOWN"])
-
-color_palette = np.array(["red", "blue", "green", "black"])
-color = np.array([np.flatnonzero(organism_map == i)[0] if i in organism_map else 3 for i in organisms])
-for c in np.unique(color)[::-1]:
-    organism = organism_map[c]
-    if organism == "UNKNOWN":
-        continue
-    elements = color == c
-    tmp = plt.scatter(
-        np.log2(qc_intensity[elements]),
-        organism_logfcs[elements],
-        marker=".",
-        c=color_palette[c],
-        label=organism
-    )
-
-
-plt.legend()
-plt.xlabel("Log(QC))")
-plt.ylabel("LogFC(A/B)")
-plt.show()
-
-predicted_organism = np.array(
-    [
-        0 if i > .5 else (2 if i < -1 else 1) for i in organism_logfcs
-    ]
-)
-z=predicted_organism==color
-np.sum(~z)/np.sum(z)
-
-
-
-
-
-
-
-
 
 
 
@@ -3005,40 +1349,6 @@ np.sum(~z)/np.sum(z)
 
 
 
-
-
-
-#
-#
-#
-# from matplotlib import collections  as mc
-#
-# lines = [[(0, 1), (1, 1)], [(2, 3), (3, 3)], [(1, 2), (1, 3)]]
-# c = np.array([(1, 0, 0, 1), (0, 1, 0, 1), (0, 0, 1, 1)])
-#
-# lc = mc.LineCollection(lines, colors=c, linewidths=2)
-# plt.axes.add_collection(lc)
-#
-
-
-
-
-
-
-
-
-
-a = significant_anchors[1000]
-n = neighbors[a].indices
-hits = significant_peptides[np.isin(significant_anchors, n)]
-ans = n[np.isin(n, significant_anchors)]
-
-
-n = neighbors[significant_anchors].T.tocsr()[significant_anchors]
-a, b = n.nonzero()
-
-
-mismatch = significant_peptides[a] != significant_peptides[b]
 
 
 
@@ -3265,190 +1575,6 @@ for anchor_index in selected_anchor_indices[:1]:
 
 
 
-# fragments, peptides = getSpectraAndMzs(in_file_name) # from mspreader
-# anchor_boundaries, fragment_peptide_indices, fragment_indices = src.aggregates.matchAnchorsToFragments(
-anchor_boundaries, fragment_order = src.aggregates.matchAnchorsToFragmentsMS2PIP(
-    fragments,
-    anchors,
-    base_mass_dict,
-    parameters,
-    log
-)
-fragment_peptide_indices = fragments["PEPTIDE"][fragment_order]
-anchor_peptide_scores, anchor_peptide_match_counts = src.aggregates.getAnchorPeptideMatrix(
-    anchors,
-    neighbors,
-    peptides,
-    anchor_boundaries,
-    fragment_peptide_indices,
-    parameters,
-    log
-)
-anchor_fragment_indices = src.aggregates.getAnchorFragmentIndices(
-    anchor_peptide_match_counts,
-    anchor_boundaries,
-    fragment_order,
-    fragment_peptide_indices,
-    parameters,
-    log
-)
-peptide_masses = (peptides["MZ"]-base_mass_dict["atoms"]["H+"])*peptides["CHARGE"]
-precursor_indices = src.aggregates.findFragmentPrecursors(
-    anchor_peptide_match_counts,
-    anchors,
-    neighbors,
-    anchor_alignment_parameters,
-    peptide_masses,
-    base_mass_dict,
-    parameters,
-    log
-)
-
-
-
-peptide_starts = np.zeros(len(peptides), dtype=int)
-peptide_starts[1:] = np.flatnonzero(np.diff(fragments["PEPTIDE"]) != 0)
-if not parameters["PSEUDO_ION_MOBILITY"]:
-    std_errors = src.aggregates.__estimateMZFromDT(
-        anchor_peptide_scores,
-        anchors,
-        peptide_masses,
-        peptides,
-        precursor_indices,
-        parameters,
-        log,
-    )
-header = [
-    "PIM_id",
-    "Label",
-    "ScanNr",
-    "rt",
-    "dm",
-    "ppm",
-    "reproducibility_count",
-    "neighbor_count",
-    "match_count",
-    "match_ratio",
-    "estimated_z",
-    "sigma_mass_distance",
-    "mod_score",
-    "pearson",
-    "pearsonpval",
-    "spearman",
-    "spearmanpval",
-    "peptide_length",
-    "score",
-    "alternatives",
-    "Peptide",
-    "Proteins",
-]
-selected_anchor_indices = np.repeat(
-    np.arange(anchor_peptide_match_counts.shape[0]),
-    np.diff(anchor_peptide_match_counts.indptr)
-)
-with log.newSection("Creating percolator data"):
-    data = []
-    for index in np.argsort(anchor_peptide_scores.data)[::-1]:
-        anchor_index = selected_anchor_indices[index]
-        anchor = anchors[anchor_index]
-        anchor_mz = anchor["MZ"]
-        fragment_index = anchor_fragment_indices[index][0]  # TODO multiple candidates?
-        fragment = fragments[fragment_index]
-        anchor_dm = anchor_mz - fragment["MZ"]
-        anchor_ppm = anchor_dm / anchor_mz * 1000000
-        anchor_neighbors = neighbors.indices[
-            neighbors.indptr[anchor_index]: neighbors.indptr[anchor_index + 1]
-        ]
-        match_count = anchor_peptide_match_counts.data[index]
-        peptide_index = anchor_peptide_match_counts.indices[index]
-        peptide = peptides[peptide_index]
-        peptide_neighbors = np.arange(
-            peptide_starts[peptide_index],
-            peptide_starts[peptide_index + 1]
-        )
-        ppm = 20
-        target_mzs = anchors["MZ"][anchor_neighbors]
-        query_mzs = fragments["MZ"][peptide_neighbors]
-        matches = src.aggregates.__matchMasses(target_mzs, query_mzs, ppm, log=None)
-        peptide_hits = np.flatnonzero((matches[:, 1] - matches[:, 0]) == 1)
-        anchor_hits = matches[peptide_hits, 0]
-        peptide_intensities = fragments["INTENSITY"][peptide_neighbors[peptide_hits]]
-        anchor_ion_hits = anchor_ions[anchor_neighbors[anchor_hits]]
-        sample_zero = anchor_ion_hits[:, 0]
-        anchor_intensities = ions["INTENSITY"][sample_zero.data]
-        peptide_intensities = peptide_intensities[
-            np.flatnonzero(np.diff(sample_zero.indptr))
-        ]
-        # mzs = fragments["MZ"][peptide_neighbors[peptide_hits]]
-        pearson_cor, pearson_pval = scipy.stats.pearsonr(
-            peptide_intensities / np.sum(peptide_intensities),
-            anchor_intensities / np.sum(anchor_intensities)
-        )
-        try:
-            spearman_cor, spearman_pval = scipy.stats.spearmanr(
-                peptide_intensities / np.sum(peptide_intensities),
-                anchor_intensities / np.sum(anchor_intensities)
-            )
-        except ValueError:
-            spearman_cor, spearman_pval = 0, 1
-        score = anchor_peptide_scores.data[index]
-        peptide_sequence = peptide["SEQUENCE"]
-        protein_string = peptide["PROTEIN"]
-        alternatives = anchor_peptide_match_counts.indptr[anchor_index + 1] - anchor_peptide_match_counts.indptr[anchor_index]
-        if parameters["PSEUDO_ION_MOBILITY"]:
-            best_z = 0
-            mass_sigma = 0
-            mod_score = 0
-        else:
-            best_z = np.argmin(std_errors[:, index]) + 1
-            mass_sigma = std_errors[best_z - 1, index]
-            mod_score = score / (.5 + mass_sigma)
-        row = [
-            index,
-            -1 if peptide["DECOY"] else 1,
-            anchor_index,
-            anchor["RT"],
-            # mass_sigma, #anchor_dm,
-            anchor_dm,
-            anchor_ppm,
-            anchor["ION_COUNT"],
-            len(anchor_neighbors),
-            match_count,
-            match_count / len(anchor_neighbors),
-            # abs(6.5 - z1_ratio),
-            best_z,
-            # anchor_dm, #mass_sigma,
-            mass_sigma,
-            mod_score,
-            0 if np.isnan(pearson_cor) else pearson_cor,
-            1 if np.isnan(pearson_pval) else pearson_pval,
-            0 if np.isnan(spearman_cor) else spearman_cor,
-            1 if np.isnan(spearman_pval) else spearman_pval,
-            len(peptide_sequence),
-            score,
-            alternatives,
-            "-.{}.-".format(peptide_sequence),  # TODO proper flanking?
-            protein_string,
-        ]
-        data.append(row)
-        # tmp=[plt.plot([mz, mz], [0, inty], "r") for mz, inty in zip(mzs, anchor_intensities / np.sum(anchor_intensities))]
-        # tmp=[plt.plot([mz, mz], [0, -inty], "b") for mz, inty in zip(mzs, peptide_intensities / np.sum(peptide_intensities))]
-        # tmp=plt.title(peptides[peptide_index])
-        # plt.show()
-    src.io.saveListOfListsToCsv(
-        data,
-        "PERCOLATOR_DATA_FILE_NAME",
-        parameters,
-        log,
-        header,
-        "\t"
-    )
-
-src.io.runPercolator(parameters, log)
-
-
-
-
 
 
 a, b = neighbors.nonzero()
@@ -3530,65 +1656,6 @@ plt.show()
 
 
 
-
-
-a, b = neighbors.nonzero()
-rtd = np.argsort(np.abs(ions["CALIBRATED_RT"][a] - ions["CALIBRATED_RT"][b]))
-dtd = np.argsort(np.abs(ions["CALIBRATED_DT"][a] - ions["CALIBRATED_DT"][b]))
-mzd = np.argsort(np.abs(ions["CALIBRATED_MZ"][a] - ions["CALIBRATED_MZ"][b]))
-dists = np.sqrt(rtd**2+dtd**2+mzd**2)
-order = np.argsort(dists)
-
-
-a_indices = a[order]
-b_indices = b[order]
-a_samples = ions["SAMPLE"][a_indices]
-b_samples = ions["SAMPLE"][b_indices]
-
-cluster_indices = np.zeros(len(ions), dtype=np.int)
-cluster_samples = np.zeros((len(ions), parameters["SAMPLE_COUNT"]), dtype=np.int)
-new_cluster = 0
-
-for a_index, b_index, a_sample, b_sample in zip(
-    a_indices,
-    b_indices,
-    a_samples,
-    b_samples,
-):
-    a_cluster = cluster_indices[a_index]
-    b_cluster = cluster_indices[b_index]
-    if a_cluster == 0:
-        if b_cluster == 0:
-            new_cluster += 1
-            cluster_samples[new_cluster, a_sample] = a_index
-            cluster_samples[new_cluster, b_sample] = b_index
-            cluster_indices[a_index] = new_cluster
-            cluster_indices[b_index] = new_cluster
-        else:
-            if cluster_samples[b_cluster, a_sample] == 0:
-                cluster_samples[b_cluster, a_sample] = a_index
-                cluster_indices[a_index] = b_cluster
-    else:
-        if b_cluster == 0:
-            if cluster_samples[a_cluster, b_sample] == 0:
-                cluster_samples[a_cluster, b_sample] = b_index
-                cluster_indices[b_index] = a_cluster
-        else:
-            for sample in np.flatnonzero(cluster_samples[a_cluster]):
-                if cluster_samples[b_cluster, sample] > 0:
-                    break
-            else:
-                for ion_index in cluster_a_samples[cluster_a_samples > 0]:
-                    cluster_indices[ion_index] = b_cluster
-                    ion_sample = ions["SAMPLE"][ion_index]
-                    cluster_samples[b_cluster, ion_sample] = ion_index
-
-
-
-# anch_sizes = np.unique(ions["AGGREGATE_INDEX"], return_counts=True)[1]
-# np.unique(anch_sizes, return_counts=True)
-cluster_sizes = np.unique(cluster_indices, return_counts=True)[1]
-np.unique(cluster_sizes, return_counts=True)
 
 
 
@@ -3690,6 +1757,31 @@ for sample in range(parameters["SAMPLE_COUNT"]):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 file_name = "/media/proteomics/MISC/Sander/APEX/20130423_Tenzer_UDMSE_LFQ_apex2d/5/func002.csv"
 data = pd.read_csv(file_name, sep=",").values
 
@@ -3705,6 +1797,7 @@ def xic_old(data, mz, dt, mz_ppm=10, dt_err=1):
     l &= data[:, DT] < dt + dt_err
     s = data[l]
     plt.show(plt.plot(s[:, RT], s[:, INT], marker="."))
+
 
 
 def xic(data, mz, dt, mz_ppm=10, dt_err=1):
@@ -3751,3 +1844,107 @@ def rtdt(data, mz, dt, rt, mz_ppm=10, dt_err=1, rt_err=1):
         cmap="RdYlGn"
     ).to_rgba(s[:, INT])
     plt.show(ax.scatter(s[:, RT], s[:, DT], s[:, MZ], c=colors))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+percolated_peptides = pd.read_csv(
+    parameters["PERCOLATOR_TARGET_PEPTIDES"],
+    delimiter="\t"
+)
+percolated_peptide_fdrs = percolated_peptides.values[:, 2]
+peptide_fdr = 0.01
+significant_percolated_peptides = np.array(
+    [
+        p.split(".")[1] for p in percolated_peptides.values[
+            percolated_peptide_fdrs <= peptide_fdr,
+            4
+        ]
+    ]
+)
+
+percolated_proteins = pd.read_csv(
+    parameters["PERCOLATOR_TARGET_PROTEINS"],
+    delimiter="\t"
+)
+percolated_protein_fdrs = percolated_proteins.values[:, 2]
+protein_fdr = 0.01
+significant_percolated_proteins = percolated_proteins.values[
+    percolated_protein_fdrs <= protein_fdr,
+    0
+]
+
+unique_organisms = ["ECOLI", "YEAST", "HUMAN"]
+select = np.isin(significant_peptide_sequences, significant_percolated_peptides)
+select &= np.isin(significant_proteins, significant_percolated_proteins)
+select &= np.isin(significant_organisms, unique_organisms)
+significant_anchors = significant_anchors[select]
+significant_peptides = significant_peptides[select]
+significant_proteins = significant_proteins[select]
+significant_organisms = significant_organisms[select]
+significant_peptide_sequences = significant_peptide_sequences[select]
+n = neighbors[significant_anchors].T.tocsr()[significant_anchors]
+cluster_count, significant_clusters = scipy.sparse.csgraph.connected_components(
+    n,
+    directed=False,
+    return_labels=True
+)
+anchor_intensities = anchor_ions[significant_anchors]
+anchor_intensities.data = ions["INTENSITY"][anchor_intensities.data]
+anchor_intensities = anchor_intensities.todense().A
+quant_file_name = ".tmp/tenzer_quant/tenzer_quant.csv"
+with open(quant_file_name, "w") as outfile:
+    csv_file = csv.writer(outfile, delimiter="\t")
+    tmp = csv_file.writerow(
+        [
+            "index",
+            "anchor",
+            "cluster",
+            "peptide",
+            "protein",
+        ] + ["Intensity " + x.split("/")[-1] for x in parameters["APEX_FILE_NAMES"]]
+    )
+    for index, anchor_index in enumerate(significant_anchors):
+        cluster = significant_clusters[index]
+        peptide = significant_peptide_sequences[index]
+        protein = significant_proteins[index]
+        # ion_start_index = anchor_intensities.indptr[index]
+        # ion_end_index = anchor_intensities.indptr[index + 1]
+        # samples = anchor_intensities.indices[ion_start_index: ion_end_index]
+        # intensities = anchor_intensities.indices[ion_start_index: ion_end_index]
+        intensities = anchor_intensities[index]
+        tmp = csv_file.writerow(
+            [
+                index,
+                anchor_index,
+                cluster,
+                peptide,
+                protein,
+            ] + intensities.tolist()
+        )

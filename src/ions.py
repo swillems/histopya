@@ -190,13 +190,6 @@ def getPseudoAggregatesIndices(ions, parameters, log, save=True):
         log.printMessage(
             "Found {} pseudo aggregate ions".format(np.sum(selected))
         )
-        if save:
-            src.io.saveArray(
-                ions[quick_indices],
-                "PSEUDO_AGGREGATE_IONS_FILE_NAME",
-                parameters,
-                log
-            )
     return quick_indices
 
 
