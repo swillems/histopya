@@ -504,6 +504,11 @@ def __multiprocessedDetectAnchorNeighbors(kwargs):
     # rt_error = alignment_parameters["RT"]
     # max_rt_error = np.max(ions["RT_ERROR"])
     minimum_hits = np.array(parameters["MINIMUM_OVERLAP"])
+    max_rt_error = np.percentile(
+        ions["RT_ERROR"],
+        100 * parameters["MAX_RT_ERROR_PERCENTILE"]
+    )
+    ion_rt_errors = np.minimum(ions["RT_ERROR"], max_rt_error)
     selected_anchors = in_queue.get()
     neighbors = scipy.sparse.dok_matrix(
         (len(anchors), len(anchors)),
@@ -553,7 +558,13 @@ def __multiprocessedDetectAnchorNeighbors(kwargs):
                 np.abs(
                     ions["RT"][ion_neighbors] - ion_rt
                 ) < np.sqrt(
-                    ion["RT_ERROR"]**2 + ions["RT_ERROR"][ion_neighbors]**2
+                    # TODO ambiguous when
+                    # max_rt_error = np.percentile(
+                    #     ions["RT_ERROR"],
+                    #     100 * parameters["MAX_RT_ERROR_PERCENTILE"]
+                    # )
+                    # is too large
+                    ion_rt_errors[ion_index]**2 + ion_rt_errors[ion_neighbors]**2
                 ) * parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"]
             ]
             # ion_neighbor_dts = ions["SHIFTED_DT"][ion_neighbors]
@@ -565,11 +576,7 @@ def __multiprocessedDetectAnchorNeighbors(kwargs):
             #     )
             # ]
             # coeluting_anchors.append(ions["AGGREGATE_INDEX"][ion_neighbors])
-            try:
-                coeluting_anchors[ions["AGGREGATE_INDEX"][ion_neighbors]] += 1
-            except IndexError:
-                print(ion_neighbors)
-                print(coeluting_anchors)
+            coeluting_anchors[ions["AGGREGATE_INDEX"][ion_neighbors]] += 1
         # try:
         #     coeluting_anchors = np.hstack(coeluting_anchors)
         # except ValueError:
@@ -622,7 +629,11 @@ def __indexIonRT(anchor_ions, ions, parameters, log):
             )
         ]
         log.printMessage("Estimating max rt errors")
-        max_rt_error = np.max(ions["RT_ERROR"])
+        # max_rt_error = np.max(ions["RT_ERROR"])
+        max_rt_error = np.percentile(
+            ions["RT_ERROR"],
+            100 * parameters["MAX_RT_ERROR_PERCENTILE"]
+        )
         sample_ions = [
             np.flatnonzero(ions["SAMPLE"] == i) for i in range(
                 parameters["SAMPLE_COUNT"]
@@ -1302,6 +1313,7 @@ def __writePercolatorFileWithoutPhysicalPrecursor(
             "sigma_mass_distance",
             "mod_score",
             "peptide_length",
+            "match_count_over_pep_len",
             "score",
             "alternatives",
             "Peptide",
@@ -1370,6 +1382,7 @@ def __writePercolatorFileWithoutPhysicalPrecursor(
                 mass_sigma,
                 mod_score,
                 len(peptide_sequence),
+                match_count / (len(peptide_sequence) * 2 - 2),
                 score,
                 alternatives,
                 "-.{}.-".format(peptide_sequence),  # TODO proper flanking?

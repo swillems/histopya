@@ -47,6 +47,7 @@ def importParameterDictFromJSON(parameter_file_name, save=True):
             parameter_file_name,
             parameters=None
         )
+        # TODO partial update for subdicts
         parameters.update(user_defined_parameters)
         __autoCompleteAllParameters(parameters)
         __createPaths(parameters)
@@ -60,7 +61,7 @@ def importParameterDictFromJSON(parameter_file_name, save=True):
                 "FULL_PARAMETERS_FILE_NAME",
                 parameters
             )
-    except Exception as e:
+    except Exception:
         print(traceback.format_exc())
         print("ERROR: Parameters could not be imported.")
         print("       HistoPyA was aborted!")

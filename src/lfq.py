@@ -1948,3 +1948,114 @@ with open(quant_file_name, "w") as outfile:
                 protein,
             ] + intensities.tolist()
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def __indexIonRT(anchor_ions, ions, parameters, log):
+    with log.newSection("Indexing ion RTs"):
+        sample_ions = anchor_ions.T.tocsr()
+        sample_rt_indices = []
+        for sample in range(parameters["SAMPLE_COUNT"]):
+            selected_ions = sample_ions.data[
+                sample_ions.indptr[sample]: sample_ions.indptr[sample + 1]
+            ]
+            sample_rt_order = np.argsort(ions["RT"][selected_ions])
+            sample_rt_indices.append(selected_ions[sample_rt_order])
+        sample_rts = [
+            ions["RT"][sample_rt_indices[i]] for i in range(
+                parameters["SAMPLE_COUNT"]
+            )
+        ]
+        log.printMessage("Estimating max rt errors")
+        max_rt_error = np.max(ions["RT_ERROR"])
+        sample_ions = [
+            np.flatnonzero(ions["SAMPLE"] == i) for i in range(
+                parameters["SAMPLE_COUNT"]
+            )
+        ]
+        all_rt_errors = [
+            np.sqrt(2) * ions[sample]["RT_ERROR"] for sample in sample_ions
+        ]
+        log.printMessage("Indexing lower rt borders")
+        low_indices = [
+            np.searchsorted(
+                sample_rts[sample],
+                ions["RT"][sample_ions[sample]] - parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"] * rt_errors,
+                "left"
+            ) for sample, rt_errors in enumerate(all_rt_errors)
+        ]
+        log.printMessage("Indexing upper rt borders")
+        high_indices = [
+            np.searchsorted(
+                sample_rts[sample],
+                ions["RT"][sample_ions[sample]] + parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"] * rt_errors,
+                "left"
+            ) for sample, rt_errors in enumerate(all_rt_errors)
+        ]
+        order = np.argsort(np.concatenate(sample_ions))
+        low_indices = np.concatenate(low_indices)[order]
+        high_indices = np.concatenate(high_indices)[order]
+    return sample_rt_indices, low_indices, high_indices
+
+
+
+sample_rt_indices, low_rt_indices, high_rt_indices = __indexIonRT(
+    anchor_ions,
+    ions,
+    parameters,
+    log
+)
+
+low_indices = low_rt_indices
+high_indices = high_rt_indices
+
+ion_index = 999999
+anchor_index = ions[ion_index]["AGGREGATE_INDEX"]
+
+ion = ions[ion_index]
+ion_rt = ion["RT"]
+ion_dt = ion["DT"]
+ion_sample = ion["SAMPLE"]
+low_index = low_indices[ion_index]
+high_index = high_indices[ion_index]
+ion_neighbors = sample_rt_indices[ion_sample][low_index: high_index]
+ion_neighbors = ion_neighbors[
+    np.abs(
+        ions["DT"][ion_neighbors] - ion_dt
+    ) < np.sqrt(
+        ion["DT_ERROR"]**2 + ions["DT_ERROR"][ion_neighbors]**2
+    ) * parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"]
+]
+ion_neighbors = ion_neighbors[
+    ions["AGGREGATE_INDEX"][ion_neighbors] < anchor_index
+]
+ion_neighbors = ion_neighbors[
+    np.abs(
+        ions["RT"][ion_neighbors] - ion_rt
+    ) < np.sqrt(
+        ion["RT_ERROR"]**2 + ions["RT_ERROR"][ion_neighbors]**2
+    ) * parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"]
+]
+
+# s0_ions = anchor_ions.T.tocsr()[0].data
+# a0 = ions["AGGREGATE_INDEX"][s0_ions]
+# n = neighbors[a0].T.tocsr()[a0]
+# anchor_count, ion_labels = scipy.sparse.csgraph.connected_components(
+#     n,
+#     directed=False,
+#     return_labels=True
+# )

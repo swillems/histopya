@@ -20,15 +20,16 @@ class GUI(object):
         self.root.winfo_toplevel().title("HistoPyA Browser")
         self.root_frame = tk.Frame(self.root, bd=1, relief="raised")
         self.root_frame.pack(fill="both", expand=1)
-        self.initOptionsFrame()
-        self.initAggregatesFrame()
-        self.initIonsFrame()
+        self.__initOptionsFrame()
+        self.__initAggregatesFrame()
+        self.__initIonsFrame()
         self.refresh()
+        self.start()
 
     def start(self):
         self.root.mainloop()
 
-    def initOptionsFrame(self):
+    def __initOptionsFrame(self):
         self.options_frame = tk.Frame(
             self.root_frame,
             bd=1,
@@ -313,7 +314,7 @@ class GUI(object):
         )
         self.maximum_replicate_count_slider.pack(anchor="w")
 
-    def initAggregatesFrame(self):
+    def __initAggregatesFrame(self):
         self.aggregate_frame = tk.Frame(
             self.root_frame,
             bd=1,
@@ -377,7 +378,7 @@ class GUI(object):
             onclick
         )
 
-    def initIonsFrame(self):
+    def __initIonsFrame(self):
         self.ion_frame = tk.Frame(
             self.root_frame,
             bd=1,

@@ -11,13 +11,11 @@ import pandas as pd
 import scipy.sparse
 from matplotlib import pyplot as plt
 import matplolib as sns
-from sklearn import linear_model
 
 # Initializing
 parameter_file_name = "data/lfq_swim_udmse_combined/parameters_QC.json"
 parameters = src.parameters.importParameterDictFromJSON(parameter_file_name)
 log = src.io.Log(parameters["LOG_FILE_NAME"][:-4] + "_interactive.txt")
-
 
 # Loading data
 with log.newSection("Loading data"):
@@ -79,20 +77,21 @@ with log.newSection("Plotting cvs"):
         anchor_ions[anchors["ION_COUNT"] == parameters["SAMPLE_COUNT"]]
     ).todense().A
     cints = ions["CALIBRATED_INTENSITY"][full_anchor_ions]
-    rts = ions["CALIBRATED_RT"][full_anchor_ions]
-    dts = ions["CALIBRATED_DT"][full_anchor_ions]
-    mzs = ions["CALIBRATED_MZ"][full_anchor_ions]
-    rts = (rts - np.average(rts, axis=1).reshape(-1, 1))
-    rts /= np.std(rts, axis=1).reshape(-1, 1)
-    dts = (dts - np.average(dts, axis=1).reshape(-1, 1))
-    dts /= np.std(dts, axis=1).reshape(-1, 1)
-    mzs = (mzs - np.average(mzs, axis=1).reshape(-1, 1))
-    mzs /= np.std(mzs, axis=1).reshape(-1, 1)
-    errs = np.sqrt(rts**2 + dts**2 + mzs**2)
-    s = np.all(errs < 4, axis=1)
-    s[:] = 1
-    cints_swim = cints[s, :9]
-    cints_udmse = cints[s, 9:]
+    # rts = ions["CALIBRATED_RT"][full_anchor_ions]
+    # dts = ions["CALIBRATED_DT"][full_anchor_ions]
+    # mzs = ions["CALIBRATED_MZ"][full_anchor_ions]
+    # rts = (rts - np.average(rts, axis=1).reshape(-1, 1))
+    # rts /= np.std(rts, axis=1).reshape(-1, 1)
+    # dts = (dts - np.average(dts, axis=1).reshape(-1, 1))
+    # dts /= np.std(dts, axis=1).reshape(-1, 1)
+    # mzs = (mzs - np.average(mzs, axis=1).reshape(-1, 1))
+    # mzs /= np.std(mzs, axis=1).reshape(-1, 1)
+    # errs = np.sqrt(rts**2 + dts**2 + mzs**2)
+    # s = np.all(errs < 4, axis=1)
+    # cints_swim = cints[s, :9]
+    # cints_udmse = cints[s, 9:]
+    cints_swim = cints[:, :9]
+    cints_udmse = cints[:, 9:]
     cints_swim_cv = scipy.stats.variation(cints_swim, axis=1)
     cints_udmse_cv = scipy.stats.variation(cints_udmse, axis=1)
     scipy.stats.ttest_rel(cints_swim_cv, cints_udmse_cv)

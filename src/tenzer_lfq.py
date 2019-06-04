@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import scipy.sparse
 from matplotlib import pyplot as plt
-import matplolib as sns
+import seaborn as sns
 from sklearn import linear_model
 
 # Initializing
@@ -377,9 +377,9 @@ with log.newSection("Calculating aggregate LFQ"):
 
 # Plotting edge COUNTS
 with log.newSection("Plotting aggregate consistent coelution counts"):
+    a, b = np.unique(np.diff(neighbors.indptr), return_counts=True)
     fig, ax = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [5, 1]})
     tmp = plt.subplots_adjust(hspace=0.1)
-    a, b = np.unique(np.diff(neighbors.indptr), return_counts=True)
     tmp = ax[0].scatter(a, np.log(b), marker=".")
     tmp = ax[0].set_ylabel("Log(Aggregate frequency)")
     tmp = ax[1].boxplot(np.diff(neighbors.indptr), whis="range", vert=False, widths=0.5)
@@ -387,6 +387,47 @@ with log.newSection("Plotting aggregate consistent coelution counts"):
     tmp = ax[1].set_xlabel("Edge count")
     # tmp = plt.show()
     tmp = plt.savefig(parameters["PLOTS_PATH"] + "aggregate_edge_counts.pdf", bbox_inches='tight')
+    tmp = plt.close()
+
+
+# Plotting edge COUNTS single sample
+with log.newSection("Plotting aggregate single sample coelution counts"):
+    sample_rt_indices, low_rt_indices, high_rt_indices = src.aggregates.__indexIonRT(
+        anchor_ions,
+        ions,
+        parameters,
+        log
+    )
+    # fig, ax = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [5, 1]})
+    # tmp = plt.subplots_adjust(hspace=0.1)
+    # a, b = np.unique(np.diff(neighbors.indptr), return_counts=True)
+    # tmp = ax[0].scatter(a, np.log(b), marker=".")
+    # tmp = ax[0].set_ylabel("Log(Aggregate frequency)")
+    # tmp = ax[1].boxplot(np.diff(neighbors.indptr), whis="range", vert=False, widths=0.5)
+    # tmp = ax[1].set_yticks([])
+    # tmp = ax[1].set_xlabel("Edge count")
+    # # tmp = plt.show()
+    # tmp = plt.savefig(parameters["PLOTS_PATH"] + "aggregate_edge_counts.pdf", bbox_inches='tight')
+    # tmp = plt.close()
+
+# Plotting edge COUNTS mgf
+with log.newSection("Plotting mgf peaks"):
+    from pyteomics import mgf
+    spectra = mgf.read('.tmp/lfq_qc_dda.mgf')
+    spectrum_sizes = np.array(
+        [len(i['m/z array']) for i in spectra]
+    )
+    # spectrum_sizes = np.repeat(spectrum_sizes, spectrum_sizes)
+    a, b = np.unique(spectrum_sizes, return_counts=True)
+    fig, ax = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [5, 1]})
+    tmp = plt.subplots_adjust(hspace=0.1)
+    tmp = ax[0].scatter(a, np.log(b), marker=".")
+    tmp = ax[0].set_ylabel("Log(Ion frequency)")
+    tmp = ax[1].boxplot(spectrum_sizes, whis="range", vert=False, widths=0.5)
+    tmp = ax[1].set_yticks([])
+    tmp = ax[1].set_xlabel("Peak count")
+    # tmp = plt.show()
+    tmp = plt.savefig(parameters["PLOTS_PATH"] + "mgf_peak_counts.pdf", bbox_inches='tight')
     tmp = plt.close()
 
 # Calculating edge accuracy
@@ -631,3 +672,53 @@ with log.newSection("Plotting significant aggreggate ion annotation example"):
     # plt.show()
     tmp = plt.savefig(parameters["PLOTS_PATH"] + "annotation_example.pdf", bbox_inches='tight')
     tmp = plt.close()
+
+
+# # Plot browser example
+# from matplotlib import pyplot as plt
+# import src.gui
+#
+# class DummyGUI(object):
+#     def __init__(self):
+#         self.minimum_replicates = 10
+#         self.maximum_replicates = 10
+#         self.label_type = "None"
+#         self.view_type = -1
+#         self.fdr_threshold = 0.01
+#         self.axis_type = "Log intensity"
+#         self.show_edges = True
+#         self.aggregate_fig = plt.Figure()
+#         self.aggregate_ax = self.aggregate_fig.add_subplot(111)
+#         self.ion_fig = plt.Figure()
+#         self.ion_ax = self.ion_fig.add_subplot(111)
+#     def getMinimumReplicateCount(self):
+#         return self.minimum_replicates
+#     def getMaximumReplicateCount(self):
+#         return self.maximum_replicates
+#     def getLabelType(self):
+#         return self.label_type
+#     def getViewType(self):
+#         return self.view_type
+#     def getFDRThreshold(self):
+#         return self.fdr_threshold
+#     def getAxisType(self):
+#         return self.axis_type
+#     def getShowEdges(self):
+#         return self.show_edges
+#     def getVisibleBoundaries(self):
+#         dt_low, dt_high = self.aggregate_ax.get_ylim()
+#         rt_low, rt_high = self.aggregate_ax.get_xlim()
+#         return rt_low, rt_high, dt_low, dt_high
+#
+# dataset = src.gui.Dataset("data/tenzer/parameters.json")
+# g = DummyGUI()
+# dataset.updateVisibleNodes(g)
+# dataset.plotVisibleNodes(g)
+# dataset.plotAnnotatedNodes(g)
+# dataset.plotSelectedNodes(g)
+# dataset.plotEdges(g)
+# g.aggregate_fig.show()
+#
+# # g.refreshAggregateCanvas()
+# # dataset.plotIons(g)
+# # g.refreshIonCanvas()
