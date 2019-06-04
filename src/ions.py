@@ -491,7 +491,21 @@ def detectAllIonNeighbors(
                 # 1 + parameters["ION_ALIGNMENT_DEVIATION_FACTOR"] * ion_alignment_parameters["CALIBRATED_MZ"] / 1000000
                 1 + (
                     parameters["ION_ALIGNMENT_DEVIATION_FACTOR"] * (
-                        np.sqrt(np.max(ions["MZ_ERROR"])**2 + ions["MZ_ERROR"]**2)
+                        np.sqrt(2) * ions["MZ_ERROR"]
+                    ) / 1000000
+                )
+            ),
+            "right"
+        )
+        lower_mz_border = np.searchsorted(
+            ions["CALIBRATED_MZ"],
+            ions["CALIBRATED_MZ"] * (
+                # TODO
+                # 1 + ion_alignment_parameters["CALIBRATED_MZ"] / 1000000
+                # 1 + parameters["ION_ALIGNMENT_DEVIATION_FACTOR"] * ion_alignment_parameters["CALIBRATED_MZ"] / 1000000
+                1 - (
+                    parameters["ION_ALIGNMENT_DEVIATION_FACTOR"] * (
+                        np.sqrt(2) * ions["MZ_ERROR"]
                     ) / 1000000
                 )
             ),
@@ -508,6 +522,7 @@ def detectAllIonNeighbors(
                 "in_queue": in_queue,
                 "ions": ions,
                 'upper_mz_border': upper_mz_border,
+                'lower_mz_border': lower_mz_border,
                 # 'dt_error': ion_alignment_parameters["CALIBRATED_DT"],
                 'rt_error': ion_alignment_parameters["CALIBRATED_RT"],
                 'parameters': parameters
@@ -551,6 +566,7 @@ def __multiprocessedDetectIonNeighbors(kwargs):
     out_queue = kwargs['out_queue']
     ions = kwargs['ions']
     upper_mz_border = kwargs['upper_mz_border']
+    lower_mz_border = kwargs['lower_mz_border']
     # dt_error = kwargs['dt_error']
     rt_error = kwargs['rt_error']
     parameters = kwargs['parameters']
@@ -562,9 +578,10 @@ def __multiprocessedDetectIonNeighbors(kwargs):
     for ion_index in selected_ions:
         ion = ions[ion_index]
         upper_index = upper_mz_border[ion_index]
-        candidate_indices = ion_index + 1 + np.flatnonzero(
+        lower_index = lower_mz_border[ion_index]
+        candidate_indices = lower_index + np.flatnonzero(
             np.abs(
-                ions["CALIBRATED_RT"][ion_index + 1: upper_index] - ion["CALIBRATED_RT"]
+                ions["CALIBRATED_RT"][lower_index: upper_index] - ion["CALIBRATED_RT"]
             ) <= rt_error
         )
         # candidate_indices = candidate_indices[
@@ -580,6 +597,9 @@ def __multiprocessedDetectIonNeighbors(kwargs):
             ) <= parameters["ION_ALIGNMENT_DEVIATION_FACTOR"] * np.sqrt(
                 ions["DT_ERROR"][candidate_indices]**2 + ion["DT_ERROR"]**2
             )
+        ]
+        candidate_indices = candidate_indices[
+            ions["MZ_ERROR"][candidate_indices] <= ion["MZ_ERROR"]
         ]
         candidate_indices = candidate_indices[
             (
