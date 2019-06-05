@@ -722,12 +722,36 @@ def __trimAnchor(
 ):
     if len(anchor_ions) <= parameters["SAMPLE_COUNT"]:
         if len(np.unique(anchor_samples)) == len(anchor_samples):
+            # cluster = np.stack(
+            #     [
+            #         anchor_ions,
+            #         np.repeat(anchor_ions[0], len(anchor_ions))
+            #     ]
+            # )
+            # return [cluster]
             return [anchor_ions]
     trimmed_anchors = []
-    if len(anchor_ions) < 1000:
+    if len(anchor_ions) < 500:
         M = neighbors[np.ix_(anchor_ions, anchor_ions)]
     else:
-        M = neighbors[anchor_ions].T.tocsr()[anchor_ions]
+        # M = neighbors[anchor_ions].T.tocsr()[anchor_ions]
+        starts = neighbors.indptr[anchor_ions]
+        ends = neighbors.indptr[anchor_ions + 1]
+        indices = np.concatenate(
+            [neighbors.indices[s: e] for s, e in zip(starts, ends)]
+        )
+        M = scipy.sparse.csr_matrix(
+            (
+                np.ones(len(indices), dtype=np.bool),
+                (
+                    indices,
+                    np.repeat(
+                        np.arange(len(anchor_ions)),
+                        ends - starts
+                    )
+                )
+            )
+        )[anchor_ions]
     M = (M**2).multiply(M)
     distance_generator = (i for i in range(1, parameters["SAMPLE_COUNT"] + 1))
     u_v_dist = next(distance_generator)
@@ -780,9 +804,9 @@ def __trimAnchor(
                         shortest_path_length.append(short)
                         prev = len(i)
                     minimum = min(shortest_path_length)
-                    for i in [
+                    for i in (
                         i for i, v in enumerate(shortest_path_length) if v == minimum
-                    ]:
+                    ):
                         for j in sorted_partial_distance_indices[i]:
                             for k in sorted_partial_distance_indices[i + 1]:
                                 if M[j, k] != 0:
@@ -798,6 +822,7 @@ def __trimAnchor(
             anchor_samples[connected_component],
             parameters
         )
+    # return [np.concatenate(trimmed_anchors, axis=1)]
     return trimmed_anchors
 
 

@@ -22,6 +22,13 @@ from matplotlib import pyplot as plt
 from sklearn import linear_model
 import sklearn
 import csv
+
+# parameter_file_name = "data/lfq_swim_190327/parameters.json"
+# parameters = src.parameters.importParameterDictFromJSON(parameter_file_name)
+# log = src.io.Log(parameters["LOG_FILE_NAME"][:-4] + "_interactive.txt")
+
+
+
 # import importlib
 # importlib.reload(src.aggregates)
 # parameter_file_name = "data/lfq_single_A_B_QC/parameters_res_auto.json"
@@ -2059,3 +2066,126 @@ ion_neighbors = ion_neighbors[
 #     directed=False,
 #     return_labels=True
 # )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+parameters["TMP_IONS"] = "data/lfq_swim_190327/results/ions_tmp.npy"
+ions = src.io.loadArray("TMP_IONS", parameters)
+neighbors = src.io.loadMatrix(
+    "ION_NEIGHBORS_FILE_NAME",
+    parameters,
+)
+neighbors = neighbors + neighbors.T
+
+ion_samples = ions["SAMPLE"]
+process_count = parameters["CPU_COUNT"]
+log.printMessage("Connecting components")
+anchor_count, ion_labels = scipy.sparse.csgraph.connected_components(
+    neighbors,
+    directed=False,
+    return_labels=True
+)
+ion_order = np.argsort(ion_labels)
+ion_label_breaks = np.concatenate(
+    [
+        [0],
+        np.flatnonzero(np.diff(ion_labels[ion_order]) > 0) + 1,
+        [len(ion_labels)]
+    ],
+)
+
+with log.newSection("start"):
+    in_queue = mp.partitionedQueue(ion_label_breaks[:-1], process_count)
+    anchor_list = []
+    for partial_neighbors in mp.parallelizedGenerator(
+        function=src.ions.__multiprocessedTrimNeighborsToAnchors,
+        function_args={
+            "in_queue": in_queue,
+            "samples": ion_samples,
+            'ion_order': ion_order,
+            'ion_label_breaks': ion_label_breaks,
+            "neighbors": neighbors,
+            "parameters": parameters,
+        },
+        process_count=process_count,
+    ):
+        anchor_list += partial_neighbors
+    log.printMessage("end")
+
+# for i in range(0, anchor_count):
+#     anchor_ions = ion_order[
+#         ion_label_breaks[i]: ion_label_breaks[i + 1]
+#     ]
+#     if len(anchor_ions) > 200000:
+#         break
+#
+# len(anchor_ions)
+# t(lambda:old(anchor_ions), number=10)
+# t(lambda:new(anchor_ions), number=10)
+# #
+# #
+# # anchor_samples = ion_samples[anchor_ions]
+# #
+# with log.newSection("start"):
+#     trimmed_anchors = src.ions.__trimAnchor(
+#         anchor_ions,
+#         neighbors,
+#         anchor_samples,
+#         parameters
+#     )
+#     log.printMessage("end")
+#
+#
+#
+#
+#
+#
+# with log.newSection("start"):
+#     M = neighbors[np.ix_(anchor_ions, anchor_ions)]
+#     log.printMessage("end")
+#
+# with log.newSection("start"):
+#     pass
+# def old(anchor_ions):
+#     M = neighbors[np.ix_(anchor_ions, anchor_ions)]
+#     return M
+#     else:
+#         M = neighbors[anchor_ions].T.tocsr()[anchor_ions]
+#     log.printMessage("end")
+#
+# with log.newSection("start"):
+#     pass
+# def new(anchor_ions):
+#     starts = neighbors.indptr[anchor_ions]
+#     ends = neighbors.indptr[anchor_ions + 1]
+#     indices = np.concatenate(
+#         [neighbors.indices[s: e] for s, e in zip(starts, ends)]
+#     )
+#     M = scipy.sparse.csr_matrix(
+#         (
+#             np.ones(len(indices), dtype=np.bool),
+#             (
+#                 indices,
+#                 np.repeat(
+#                     np.arange(len(anchor_ions)),
+#                     ends - starts
+#                 )
+#             )
+#         )
+#     )[anchor_ions]
+#     return M
+#     log.printMessage("end")

@@ -1,14 +1,18 @@
 #!venv/bin/python
 
-import tkinter as tk
-from matplotlib import pyplot as plt
-import matplotlib.backends.backend_tkagg as tkagg
-import src.io
-import src.parameters
-import src.peptides
-import numpy as np
+
 import matplotlib
+matplotlib.use("tkAgg")
+import tkinter as tk
+import matplotlib.pyplot as plt
+import matplotlib.backends.backend_tkagg as tkagg
+import src.parameters
+import src.io
+import src.ions
+import src.aggregates
+import src.peptides
 import pandas as pd
+import numpy as np
 
 
 class GUI(object):
@@ -42,7 +46,7 @@ class GUI(object):
         self.options = {}
         self.addLabelOption()
         self.addAxisOption()
-        self.addViewTypeOption()
+        # self.addViewTypeOption()
         self.addShowEdgesOption()
         self.addMinimumSignalOption()
         self.addMaximumSignalOption()
@@ -430,7 +434,10 @@ class GUI(object):
         return self.label_type.get()
 
     def getViewType(self):
-        return self.view_type.get()
+        try:
+            return self.view_type.get()
+        except AttributeError:
+            return -1
 
     def getFDRThreshold(self):
         return 10 ** self.fdr_threshold_slider.get()
@@ -842,5 +849,10 @@ class Dataset(object):
             gui.aggregate_ax.annotate(label, (rt, dt))
 
 
+if __name__ == "__main__":
+    import src.parameters
+    parameters = src.parameters.parseFromCommandLine()
+    dataset = Dataset(parameters)
+    gui = GUI(dataset)
 
 # import src.gui; import importlib; importlib.reload(src.gui); d=src.gui.Dataset("data/tenzer/parameters.json"); g=src.gui.GUI(d)
