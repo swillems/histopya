@@ -606,7 +606,7 @@ def __multiprocessedDetectIonNeighbors(kwargs):
                 ions["CALIBRATED_MZ"][candidate_indices] - ion["CALIBRATED_MZ"]
             ) * 1000000 <= parameters["ION_ALIGNMENT_DEVIATION_FACTOR"] * np.sqrt(
                 ions["MZ_ERROR"][candidate_indices]**2 + ion["MZ_ERROR"]**2
-            ) * ion["CALIBRATED_MZ"]
+            ) * np.minimum(ion["CALIBRATED_MZ"], ions["CALIBRATED_MZ"][candidate_indices])
         ]
         if not parameters["HE_ONLY"]:
             candidate_indices = candidate_indices[

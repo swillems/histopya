@@ -209,7 +209,7 @@ class GUI(object):
         label_types = [
             "Log intensity",
             "rt",
-            "dt"
+            "dt",
         ]
         self.axis_type = tk.StringVar()
         self.axis_type.set(label_types[0])

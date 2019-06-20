@@ -118,10 +118,32 @@ with log.newSection("Plotting cvs"):
         gridsize=1000,
         orient="h"
     )
-    tmp = plt.ylabel("Distribution")
+    tmp = plt.ylabel("Relative frequency")
     tmp = plt.xlabel("CV of fully reproducible aggregates")
     tmp = plt.yticks([])
     tmp = plt.xlim([0, 0.5])
     # tmp = plt.show()
     tmp = plt.savefig(parameters["PLOTS_PATH"] + "cv_comparison.pdf", bbox_inches='tight')
+    tmp = plt.close()
+
+
+
+# Plotting edge COUNTS mgf
+with log.newSection("Plotting mgf peaks"):
+    from pyteomics import mgf
+    spectra = mgf.read('.tmp/lfq_qc_dda.mgf')
+    spectrum_sizes = np.array(
+        [len(i['m/z array']) for i in spectra]
+    )
+    # spectrum_sizes = np.repeat(spectrum_sizes, spectrum_sizes)
+    a, b = np.unique(spectrum_sizes, return_counts=True)
+    fig, ax = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [5, 1]})
+    tmp = plt.subplots_adjust(hspace=0.1)
+    tmp = ax[0].scatter(a, np.log2(b), marker=".")
+    tmp = ax[0].set_ylabel("Log(Ion frequency)")
+    tmp = ax[1].boxplot(spectrum_sizes, whis="range", vert=False, widths=0.5)
+    tmp = ax[1].set_yticks([])
+    tmp = ax[1].set_xlabel("Peak count")
+    # tmp = plt.show()
+    tmp = plt.savefig(parameters["PLOTS_PATH"] + "tenzer_lfq_mgf_peak_counts.pdf", bbox_inches='tight')
     tmp = plt.close()

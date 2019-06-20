@@ -95,7 +95,10 @@ def main(parameters):
             neighbors += neighbors.T
             # src.aggregates.writeMgf(neighbors, anchors, anchor_ions, ions, parameters, log)
             base_mass_dict = src.peptides.loadBaseMassDict(parameters, log)
-            proteins, total_protein_sequence, ptms, ptm_matrix = src.peptides.importProteinsAndPtms(parameters, log)
+            proteins, total_protein_sequence, ptms, ptm_matrix = src.peptides.importProteinsAndPtms(
+                parameters,
+                log
+            )
             peptides, peptide_index_matrix, digestion_matrix = src.peptides.digestProteins(
                 proteins,
                 total_protein_sequence,

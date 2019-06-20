@@ -14,14 +14,37 @@ import seaborn as sns
 from sklearn import linear_model
 
 # Initializing
-parameter_file_name = "data/tenzer/parameters.json"
-conditions = {
-    "A": slice(0, None, 2),
-    "B": slice(1, None, 2),
-    "QC": slice(0, None, 1)
-}
-parameters = src.parameters.importParameterDictFromJSON(parameter_file_name)
-log = src.io.Log(parameters["LOG_FILE_NAME"][:-4] + "_tenzer_lfq.txt")
+# extension = "tenzer"
+# extension = "udmse"
+extension = "swim"
+if extension == "tenzer":
+    parameter_file_name = "data/tenzer/parameters.json"
+    conditions = {
+        "A": slice(0, None, 2),
+        "B": slice(1, None, 2),
+        "QC": slice(0, None, 1)
+    }
+    parameters = src.parameters.importParameterDictFromJSON(parameter_file_name)
+    log = src.io.Log(parameters["LOG_FILE_NAME"][:-4] + "_" + extension + "_lfq.txt")
+elif extension == "udmse":
+    parameter_file_name = "data/lfq_udmse_190327/parameters.json"
+    conditions = {
+        "A": slice(0, 9, 1),
+        "B": slice(9, 18, 1),
+        "QC": slice(18, None, 1)
+    }
+    parameters = src.parameters.importParameterDictFromJSON(parameter_file_name)
+    log = src.io.Log(parameters["LOG_FILE_NAME"][:-4] + "_" + extension + "_lfq.txt")
+elif extension == "swim":
+    parameter_file_name = "data/lfq_swim_190327/parameters.json"
+    conditions = {
+        "A": slice(0, 9, 1),
+        "B": slice(9, 18, 1),
+        "QC": slice(18, None, 1)
+    }
+    parameters = src.parameters.importParameterDictFromJSON(parameter_file_name)
+    log = src.io.Log(parameters["LOG_FILE_NAME"][:-4] + "_" + extension + "_lfq.txt")
+
 
 # Loading data
 with log.newSection("Loading data"):
@@ -135,18 +158,18 @@ with log.newSection("Loading data"):
 #     # tmp = fig.text(0.5, 0.04, 'Sample', ha='center')
 #     tmp = ax[2, 0].get_xaxis().set_ticklabels(
 #         [
-#             "_".join(x.split("/")[-1].split("_")[:-1]) for x in parameters["APEX_FILE_NAMES"]
+#             "Sample {}".format(x.split("_")[-2]) for x in parameters["APEX_FILE_NAMES"]
 #         ]
 #     )
 #     tmp = ax[2, 1].get_xaxis().set_ticklabels(
 #         [
-#             "_".join(x.split("/")[-1].split("_")[:-1]) for x in parameters["APEX_FILE_NAMES"]
+#             "Sample {}".format(x.split("_")[-2]) for x in parameters["APEX_FILE_NAMES"]
 #         ]
 #     )
 #     tmp = plt.setp(ax[2, 0].get_xticklabels(), rotation=45, ha="right")
 #     tmp = plt.setp(ax[2, 1].get_xticklabels(), rotation=45, ha="right")
 #     # plt.show()
-#     tmp = plt.savefig(parameters["PLOTS_PATH"] + "tenzer_lfq_calibration.pdf", bbox_inches='tight')
+#     tmp = plt.savefig(parameters["PLOTS_PATH"] + extension + "_lfq_calibration.pdf", bbox_inches='tight')
 #     tmp = plt.close()
 
 # Plot calibration
@@ -211,23 +234,22 @@ with log.newSection("Plotting calibration results"):
     tmp = ax[1, 2].tick_params(axis='y', which='both', left=False)
     tmp = ax[0, 0].get_yaxis().set_ticklabels(
         [
-            "_".join(x.split("/")[-1].split("_")[:-1]) for x in parameters["APEX_FILE_NAMES"]
+            "Sample {}".format(x.split("_")[-2]) for x in parameters["APEX_FILE_NAMES"]
         ]
     )
     tmp = ax[1, 0].get_yaxis().set_ticklabels(
         [
-            "_".join(x.split("/")[-1].split("_")[:-1]) for x in parameters["APEX_FILE_NAMES"]
+            "Sample {}".format(x.split("_")[-2]) for x in parameters["APEX_FILE_NAMES"]
         ]
     )
     tmp = ax[0, 0].axes.get_yaxis().set_visible(True)
     tmp = ax[1, 0].axes.get_yaxis().set_visible(True)
     # plt.show()
-    tmp = plt.savefig(parameters["PLOTS_PATH"] + "tenzer_lfq_calibration.pdf", bbox_inches='tight')
+    tmp = plt.savefig(parameters["PLOTS_PATH"] + extension + "_lfq_calibration.pdf", bbox_inches='tight')
     tmp = plt.close()
 
 # Unfiltered LFQ calculations
 with log.newSection("Calculating unfiltered aggregate LFQ"):
-    # parameters["UNFILTERED_IONS_FILE_NAME"] = "data/tenzer/results/ions_unfiltered_tmp.npy"
     unfiltered_ions = src.io.loadArray("IONS_UNFILTERED_FILE_NAME", parameters)
     unfiltered_anchors, unfiltered_anchor_ions, unfiltered_ions = src.aggregates.defineFromIons(
         unfiltered_ions,
@@ -237,6 +259,7 @@ with log.newSection("Calculating unfiltered aggregate LFQ"):
         remove_noise=False,
         order_anchors=False
     )
+    log.printMessage("Calculating aggregate properties per condition")
     anchors_per_condition = {}
     anchor_ions_per_condition = {}
     sample_ions = unfiltered_anchor_ions.T.tocsr()
@@ -275,28 +298,51 @@ with log.newSection("Calculating unfiltered aggregate LFQ"):
 
 # Plotting unfiltered aggregate intensities and counts
 with log.newSection("Plotting unfiltered aggregate intensities and counts"):
-    fig, ax = plt.subplots(2, 1, sharex=True)
+    fig, ax = plt.subplots(3, 1, sharex=True)
     tmp = plt.subplots_adjust(hspace=0.1)
+    sample_totals = []
     for sample in range(parameters["SAMPLE_COUNT"]):
         sample_anchors = unfiltered_ions["AGGREGATE_INDEX"][unfiltered_ions["SAMPLE"] == sample]
         frequencies = np.bincount(unfiltered_anchors["ION_COUNT"][sample_anchors])
         start = np.flatnonzero(frequencies > 0)[0]
         tmp = ax[0].plot(
             np.arange(start, len(frequencies)),
-            frequencies[start:]
+            frequencies[start:],
+            marker="."
         )
+        sample_totals.append(np.sum(frequencies))
     tmp = ax[0].legend(
         [
-            "_".join(x.split("/")[-1].split("_")[:-1]) for x in parameters["APEX_FILE_NAMES"]
+            "Sample {} ({})".format(
+                name.split("_")[-2],
+                count
+            ) for name, count in zip(
+                parameters["APEX_FILE_NAMES"],
+                sample_totals
+            )
         ],
         # bbox_to_anchor=(0., 1.02, 1., .102),
         # loc=5,
-        fontsize="small",
+        fontsize="x-small",
         ncol=2,
         # mode="expand",
         # borderaxespad=0.
     )
-    tmp = ax[0].set_ylabel("Frequency")
+    tmp = ax[0].set_ylabel("Ion frequency")
+    aggregate_frequencies = np.bincount(unfiltered_anchors["ION_COUNT"])
+    aggregate_start = np.flatnonzero(aggregate_frequencies > 0)[0]
+    tmp = ax[1].plot(
+        np.arange(aggregate_start, len(aggregate_frequencies)),
+        np.log2(aggregate_frequencies[aggregate_start:]),
+        marker="."
+    )
+    tmp = ax[1].yaxis.set_label_position("right")
+    tmp = ax[1].set_ylabel(
+        "Aggregate log2(frequency)",
+        # rotation=270,
+        # ha="left",
+        # va="center",
+    )
     x = [
         np.log2(
             anchors_per_condition["QC"]["INTENSITY"][
@@ -307,6 +353,11 @@ with log.newSection("Plotting unfiltered aggregate intensities and counts"):
             parameters["SAMPLE_COUNT"] + 1
         )
     ]
+    # z = np.array([np.percentile(i, [0, 25, 50, 75, 100]) for i in x])
+    # # plt.plot(z ,marker=".")
+    # tmp = ax[2].fill_between(range(len(z)), z[:, 0], z[:, 4], alpha=0.5)
+    # tmp = ax[2].fill_between(range(len(z)), z[:, 1], z[:, 3], alpha=0.5)
+    # tmp = [ax[2].plot(i, c="grey", linestyle=":") for i in z.T]
     # x[0][0]=0 # inf present
     # d = pd.DataFrame(
     #     np.stack(
@@ -324,11 +375,14 @@ with log.newSection("Plotting unfiltered aggregate intensities and counts"):
     #     inner="quartile",
     #     # gridsize=1000,
     # )
-    tmp = ax[1].boxplot(x, whis="range")
-    tmp = ax[1].set_ylabel("Average log2(intensity)")
-    tmp = ax[1].set_xlabel("Aggregate ion count")
+    tmp = ax[2].boxplot(x, whis="range")
+    # tmp = plt.plot(range(1,11), z[:,2], c="grey",linestyle=":")
+    tmp = ax[2].set_ylabel("Log2(A + B)")
+    tmp = ax[2].set_xlabel("Reproducibility")
+    # tmp = ax[2].yaxis.grid(which="major", linestyle=":", color='lightgrey', alpha=0.5)
+    # tmp = ax[2].set_axisbelow(True)
     # tmp = plt.show()
-    tmp = plt.savefig(parameters["PLOTS_PATH"] + "tenzer_lfq_aggregate_counts_and_intensities.pdf", bbox_inches='tight')
+    tmp = plt.savefig(parameters["PLOTS_PATH"] + extension + "_lfq_aggregate_counts_and_intensities.pdf", bbox_inches='tight')
     tmp = plt.close()
 
 # Plotting edge COUNTS
@@ -336,78 +390,59 @@ with log.newSection("Plotting aggregate consistent coelution counts"):
     a, b = np.unique(np.diff(neighbors.indptr), return_counts=True)
     fig, ax = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [5, 1]})
     tmp = plt.subplots_adjust(hspace=0.1)
-    tmp = ax[0].scatter(a, np.log(b), marker=".")
+    tmp = ax[0].scatter(a, np.log2(b), marker=".")
     tmp = ax[0].set_ylabel("Log(Aggregate frequency)")
     tmp = ax[1].boxplot(np.diff(neighbors.indptr), whis="range", vert=False, widths=0.5)
     tmp = ax[1].set_yticks([])
     tmp = ax[1].set_xlabel("Edge count")
     # tmp = plt.show()
-    tmp = plt.savefig(parameters["PLOTS_PATH"] + "tenzer_lfq_aggregate_edge_counts.pdf", bbox_inches='tight')
+    tmp = plt.savefig(parameters["PLOTS_PATH"] + extension + "_lfq_aggregate_edge_counts.pdf", bbox_inches='tight')
     tmp = plt.close()
 
-# Plotting edge COUNTS single sample
-with log.newSection("Plotting aggregate single sample coelution counts"):
-    original_rt_errors = ions["RT_ERROR"].copy()
-    original_dt_errors = ions["DT_ERROR"].copy()
-    ions["RT_ERROR"] = 0.1
-    ions["DT_ERROR"] = 1
-    sample_rt_indices, low_rt_indices, high_rt_indices = src.aggregates.__indexIonRT(
-        anchor_ions,
-        ions,
-        parameters,
-        log
-    )
-    for ion_index in anchor_ions[anchor_index].data:
-        ion = ions[ion_index]
-        ion_rt = ion["RT"]
-        ion_dt = ion["DT"]
-        ion_sample = ion["SAMPLE"]
-        low_index = low_rt_indices[ion_index]
-        high_index = high_rt_indices[ion_index]
-        ion_neighbors = sample_rt_indices[ion_sample][low_index: high_index]
-        ion_neighbors = ion_neighbors[
-            np.abs(
-                ions["DT"][ion_neighbors] - ion_dt
-            ) < np.sqrt(
-                ion["DT_ERROR"]**2 + ions["DT_ERROR"][ion_neighbors]**2
-            ) * parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"]
-        ]
-        ion_neighbors = ion_neighbors[
-            ions["AGGREGATE_INDEX"][ion_neighbors] < anchor_index
-        ]
-    fig, ax = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [5, 1]})
-    tmp = plt.subplots_adjust(hspace=0.1)
-    a, b = np.unique(np.diff(neighbors.indptr), return_counts=True)
-    tmp = ax[0].scatter(a, np.log(b), marker=".")
-    tmp = ax[0].set_ylabel("Log(Aggregate frequency)")
-    tmp = ax[1].boxplot(np.diff(neighbors.indptr), whis="range", vert=False, widths=0.5)
-    tmp = ax[1].set_yticks([])
-    tmp = ax[1].set_xlabel("Edge count")
-    # tmp = plt.show()
-    tmp = plt.savefig(parameters["PLOTS_PATH"] + "tenzer_lfq_aggregate_edge_counts.pdf", bbox_inches='tight')
-    tmp = plt.close()
-    ions["RT_ERROR"] = original_rt_errors
-    ions["DT_ERROR"] = original_dt_errors
+# # Plotting edge COUNTS single sample
+# with log.newSection("Plotting aggregate single sample coelution counts"):
+#     original_rt_errors = ions["RT_ERROR"].copy()
+#     original_dt_errors = ions["DT_ERROR"].copy()
+#     ions["RT_ERROR"] = 0.1
+#     ions["DT_ERROR"] = 1
+#     sample_rt_indices, low_rt_indices, high_rt_indices = src.aggregates.__indexIonRT(
+#         anchor_ions,
+#         ions,
+#         parameters,
+#         log
+#     )
+#     for ion_index in anchor_ions[anchor_index].data:
+#         ion = ions[ion_index]
+#         ion_rt = ion["RT"]
+#         ion_dt = ion["DT"]
+#         ion_sample = ion["SAMPLE"]
+#         low_index = low_rt_indices[ion_index]
+#         high_index = high_rt_indices[ion_index]
+#         ion_neighbors = sample_rt_indices[ion_sample][low_index: high_index]
+#         ion_neighbors = ion_neighbors[
+#             np.abs(
+#                 ions["DT"][ion_neighbors] - ion_dt
+#             ) < np.sqrt(
+#                 ion["DT_ERROR"]**2 + ions["DT_ERROR"][ion_neighbors]**2
+#             ) * parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"]
+#         ]
+#         ion_neighbors = ion_neighbors[
+#             ions["AGGREGATE_INDEX"][ion_neighbors] < anchor_index
+#         ]
+#     fig, ax = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [5, 1]})
+#     tmp = plt.subplots_adjust(hspace=0.1)
+#     a, b = np.unique(np.diff(neighbors.indptr), return_counts=True)
+#     tmp = ax[0].scatter(a, np.log2(b), marker=".")
+#     tmp = ax[0].set_ylabel("Log(Aggregate frequency)")
+#     tmp = ax[1].boxplot(np.diff(neighbors.indptr), whis="range", vert=False, widths=0.5)
+#     tmp = ax[1].set_yticks([])
+#     tmp = ax[1].set_xlabel("Edge count")
+#     # tmp = plt.show()
+#     tmp = plt.savefig(parameters["PLOTS_PATH"] + extension + "_lfq_aggregate_edge_counts.pdf", bbox_inches='tight')
+#     tmp = plt.close()
+#     ions["RT_ERROR"] = original_rt_errors
+#     ions["DT_ERROR"] = original_dt_errors
 
-# Plotting edge COUNTS mgf
-with log.newSection("Plotting mgf peaks"):
-    from pyteomics import mgf
-    spectra = mgf.read('.tmp/lfq_qc_dda.mgf')
-    spectrum_sizes = np.array(
-        [len(i['m/z array']) for i in spectra]
-    )
-    spectrum_sizes = np.repeat(spectrum_sizes, spectrum_sizes)
-    a, b = np.unique(spectrum_sizes, return_counts=True)
-    fig, ax = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [5, 1]})
-    tmp = plt.subplots_adjust(hspace=0.1)
-    tmp = ax[0].scatter(a, np.log(b), marker=".")
-    tmp = ax[0].set_ylabel("Log(Ion frequency)")
-    tmp = ax[1].boxplot(spectrum_sizes, whis="range", vert=False, widths=0.5)
-    tmp = ax[1].set_yticks([])
-    tmp = ax[1].set_xlabel("Peak count")
-    # tmp = plt.show()
-    tmp = plt.savefig(parameters["PLOTS_PATH"] + "tenzer_lfq_mgf_peak_counts.pdf", bbox_inches='tight')
-    tmp = plt.close()
 
 # LFQ calculations
 with log.newSection("Calculating aggregate LFQ"):
@@ -429,7 +464,7 @@ with log.newSection("Calculating aggregate LFQ"):
         anchor_sizes = np.diff(condition_anchor_ions.indptr)
         intensities = np.zeros(len(anchors), dtype=np.float)
         cvs = np.zeros(len(anchors), dtype=np.float)
-        for size in range(1, np.max(anchor_sizes) + 1):
+        for size in range(np.min(parameters["MINIMUM_OVERLAP"]), np.max(anchor_sizes) + 1):
             anchor_subset = np.flatnonzero(anchor_sizes == size)
             anchor_subset_matrix = np.concatenate(
                 [
@@ -446,7 +481,7 @@ with log.newSection("Calculating aggregate LFQ"):
         condition_anchors["INTENSITY"] = intensities
         anchors_per_condition[condition] = condition_anchors
         anchor_ions_per_condition[condition] = condition_anchor_ions
-    logfcs = np.log(anchors_per_condition["A"]["INTENSITY"] / anchors_per_condition["B"]["INTENSITY"])
+    logfcs = np.log2(anchors_per_condition["A"]["INTENSITY"] / anchors_per_condition["B"]["INTENSITY"])
 
 # Calculating edge accuracy
 with log.newSection("Calculating consistent coeluton accuracy"):
@@ -527,7 +562,7 @@ with log.newSection("Plotting consitent coelution accuracy"):
     )
     tmp = plt.ylabel("% Consistent co-eluting aggregates with equal logFC")
     # tmp = plt.show()
-    tmp = plt.savefig(parameters["PLOTS_PATH"] + "tenzer_lfq_edge_accuracy.pdf", bbox_inches='tight')
+    tmp = plt.savefig(parameters["PLOTS_PATH"] + extension + "_lfq_edge_accuracy.pdf", bbox_inches='tight')
     tmp = plt.close()
 
 # Annotation accuracy
@@ -573,16 +608,16 @@ with log.newSection("Plotting aggreggate annotation accuracy"):
     for i, c in enumerate(unique_organisms):
         s = np.flatnonzero(significant_organisms == c)
         scatter = plt.scatter(
-            np.log(anchors_per_condition["QC"]["INTENSITY"][significant_anchors[s]]),
+            np.log2(anchors_per_condition["QC"]["INTENSITY"][significant_anchors[s]]),
             logfcs[significant_anchors][s],
             c=organism_coloring[s],
             s=1
         )
     tmp = plt.legend(unique_organisms)
-    tmp = plt.xlabel("Log(A+B)")
-    tmp = plt.ylabel("Log(A/B)")
+    tmp = plt.xlabel("Log2((A + B) / 2)")
+    tmp = plt.ylabel("Log2(A / B)")
     # tmp = plt.show()
-    tmp = plt.savefig(parameters["PLOTS_PATH"] + "tenzer_lfq_annotation_accuracy.pdf", bbox_inches='tight')
+    tmp = plt.savefig(parameters["PLOTS_PATH"] + extension + "_lfq_annotation_accuracy.pdf", bbox_inches='tight')
     tmp = plt.close()
 
 # # Plot annotation accuracies
@@ -591,14 +626,14 @@ with log.newSection("Plotting aggreggate annotation accuracy"):
 #     fig, ax = plt.subplots(1, len(unique_organisms), sharex=True, sharey=True)
 #     for i, c in enumerate(unique_organisms):
 #         scatter = ax[i].scatter(
-#             np.log(anchors_per_condition["QC"]["INTENSITY"][significant_anchors]),
+#             np.log2(anchors_per_condition["QC"]["INTENSITY"][significant_anchors]),
 #             logfcs[significant_anchors],
 #             c="grey",
 #             s=1
 #         )
 #         s = np.flatnonzero(significant_organisms == c)
 #         scatter = ax[i].scatter(
-#             np.log(anchors_per_condition["QC"]["INTENSITY"][significant_anchors[s]]),
+#             np.log2(anchors_per_condition["QC"]["INTENSITY"][significant_anchors[s]]),
 #             logfcs[significant_anchors][s],
 #             c="red",
 #             s=1
@@ -607,17 +642,49 @@ with log.newSection("Plotting aggreggate annotation accuracy"):
 #     tmp = ax[1].set_xlabel("Log(A+B)")
 #     tmp = ax[0].set_ylabel("Log(A/B)")
 #     # tmp = plt.show()
-#     tmp = plt.savefig(parameters["PLOTS_PATH"] + "tenzer_lfq_annotation_accuracy.pdf", bbox_inches='tight')
+#     tmp = plt.savefig(parameters["PLOTS_PATH"] + extension + "_lfq_annotation_accuracy.pdf", bbox_inches='tight')
 #     tmp = plt.close()
 
 # Plot significant aggreggate ion count enrichment
 with log.newSection("Plotting significant aggreggate ion count enrichment"):
-    counts = np.bincount(anchors["ION_COUNT"][significant_anchors])
-    tmp = plt.plot(np.arange(2, len(counts)), counts[2:], marker=".")
-    tmp = plt.xlabel("Significant aggregate ion counts")
-    tmp = plt.ylabel("Frequency")
+    annotated_frequencies = np.bincount(anchors["ION_COUNT"][significant_anchors])
+    all_frequencies = np.bincount(anchors["ION_COUNT"])
+    fig, ax = plt.subplots(1, 1)
+    tmp = ax.set_xlabel("Reproducibility")
+    tmp = ax.set_ylabel("log2(frequency)")
+    # ax2 = ax.twinx()
+    plt_annotated, = ax.plot(
+        np.arange(2, parameters["SAMPLE_COUNT"] + 1),
+        np.log2(annotated_frequencies[2:]),
+        c="green",
+        marker=".",
+        label="Annotated",
+    )
+    plt_all, = ax.plot(
+        np.arange(2, parameters["SAMPLE_COUNT"] + 1),
+        np.log2(all_frequencies[2:]),
+        c="red",
+        marker=".",
+        label="All",
+    )
+    # plt_percentage, = ax2.plot(
+    #     np.arange(2, parameters["SAMPLE_COUNT"] + 1),
+    #     annotated_frequencies[2:] / all_frequencies[2:],
+    #     c="blue",
+    #     marker=".",
+    #     # label="All aggregates",
+    # )
+    tmp = ax.legend(
+        [plt_annotated, plt_all],
+        ["Annotated aggregates", "All aggregates"],
+        # loc='upper center'
+    )
+    # tmp = ax2.legend(
+    #     [plt_percentage],
+    #     ["Annotation percentage"],
+    # )
     # tmp = plt.show()
-    tmp = plt.savefig(parameters["PLOTS_PATH"] + "tenzer_lfq_annotated_aggregate_enrichment.pdf", bbox_inches='tight')
+    tmp = plt.savefig(parameters["PLOTS_PATH"] + extension + "_lfq_annotated_aggregate_enrichment.pdf", bbox_inches='tight')
     tmp = plt.close()
 
 # Plot annotation example
@@ -665,7 +732,7 @@ with log.newSection("Plotting significant aggreggate ion annotation example"):
     ransac = linear_model.RANSACRegressor()
     tmp = ransac.fit(
         counts.reshape(-1, 1)[:-1],
-        np.log(frequency).reshape(-1, 1)[:-1]
+        np.log2(frequency).reshape(-1, 1)[:-1]
     )
     score = -ransac.predict(counts[-1])[0][0]
     # plt.bar(counts, frequency)
@@ -673,7 +740,7 @@ with log.newSection("Plotting significant aggreggate ion annotation example"):
     # plt.xlabel("#Peptides with fragment count")
     # plt.ylabel("Frequency")
     # plt.show()
-    tmp = plt.scatter(counts, np.log(frequency), marker=".")
+    tmp = plt.scatter(counts, np.log2(frequency), marker=".")
     tmp = plt.plot(
         [
             0,
@@ -686,7 +753,7 @@ with log.newSection("Plotting significant aggreggate ion annotation example"):
     )
     tmp = plt.plot(
         [counts[-1], counts[-1]],
-        [-score, np.log(frequencies[-1])],
+        [-score, np.log2(frequencies[-1])],
         linestyle="--",
         c="grey"
     )
@@ -694,7 +761,7 @@ with log.newSection("Plotting significant aggreggate ion annotation example"):
     tmp = plt.ylabel("Log frequency")
     tmp = plt.title("Score={}".format(score))
     # plt.show()
-    tmp = plt.savefig(parameters["PLOTS_PATH"] + "tenzer_lfq_annotation_example.pdf", bbox_inches='tight')
+    tmp = plt.savefig(parameters["PLOTS_PATH"] + extension + "_lfq_annotation_example.pdf", bbox_inches='tight')
     tmp = plt.close()
 
 
@@ -746,3 +813,52 @@ with log.newSection("Plotting significant aggreggate ion annotation example"):
 # # g.refreshAggregateCanvas()
 # # dataset.plotIons(g)
 # # g.refreshIonCanvas()
+
+
+
+
+
+
+
+
+#
+#
+# # a, b = np.unique(np.diff(neighbors[significant_anchors].indptr), return_counts=True)
+# # plt.scatter(a, b / np.sum(b))
+# from pyteomics import mgf
+# spectra = [s for s in mgf.read('.tmp/lfq_qc_dda.mgf')]
+# # spectrum_sizes = np.array([len(i['m/z array']) for i in spectra)
+# # spectrum_sizes = np.repeat(spectrum_sizes, spectrum_sizes)
+# # aa, bb = np.unique(spectrum_sizes, return_counts=True)
+# # plt.scatter(aa, bb / np.sum(bb))
+# # plt.show()
+#
+# x = np.diff(neighbors[significant_anchors].indptr)
+# # x = np.diff(neighbors.indptr)
+# y = np.array([len(i['m/z array']) for i in spectra])
+# d = pd.DataFrame(
+#     np.stack(
+#         [
+#             np.concatenate([x, y]),
+#             np.repeat(["Ion-network", "MGF"], [len(x), len(y)]),
+#         ]
+#     ).T,
+#     columns=["value", "Data format"],
+# )
+# d["Y"] = 1
+# d["value"] = d["value"].astype(np.int)
+# tmp = sns.violinplot(
+#     x='value',
+#     y='Y',
+#     hue='Data format',
+#     split=True,
+#     data=d,
+#     inner="quartile",
+#     gridsize=1000,
+#     orient="h"
+# )
+# tmp = plt.ylabel("Distribution")
+# tmp = plt.xlabel("Number of peaks / Consistently co-eluting aggregates")
+# tmp = plt.yticks([])
+# tmp = plt.xlim([0, 500])
+# plt.show()
