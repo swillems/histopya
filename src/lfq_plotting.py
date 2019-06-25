@@ -14,9 +14,9 @@ import seaborn as sns
 from sklearn import linear_model
 
 # Initializing
-# extension = "tenzer"
+extension = "tenzer"
 # extension = "udmse"
-extension = "swim"
+# extension = "swim"
 if extension == "tenzer":
     parameter_file_name = "data/tenzer/parameters.json"
     conditions = {
@@ -24,8 +24,6 @@ if extension == "tenzer":
         "B": slice(1, None, 2),
         "QC": slice(0, None, 1)
     }
-    parameters = src.parameters.importParameterDictFromJSON(parameter_file_name)
-    log = src.io.Log(parameters["LOG_FILE_NAME"][:-4] + "_" + extension + "_lfq.txt")
 elif extension == "udmse":
     parameter_file_name = "data/lfq_udmse_190327/parameters.json"
     conditions = {
@@ -33,8 +31,6 @@ elif extension == "udmse":
         "B": slice(9, 18, 1),
         "QC": slice(18, None, 1)
     }
-    parameters = src.parameters.importParameterDictFromJSON(parameter_file_name)
-    log = src.io.Log(parameters["LOG_FILE_NAME"][:-4] + "_" + extension + "_lfq.txt")
 elif extension == "swim":
     parameter_file_name = "data/lfq_swim_190327/parameters.json"
     conditions = {
@@ -42,8 +38,9 @@ elif extension == "swim":
         "B": slice(9, 18, 1),
         "QC": slice(18, None, 1)
     }
-    parameters = src.parameters.importParameterDictFromJSON(parameter_file_name)
-    log = src.io.Log(parameters["LOG_FILE_NAME"][:-4] + "_" + extension + "_lfq.txt")
+
+parameters = src.parameters.importParameterDictFromJSON(parameter_file_name)
+log = src.io.Log(parameters["LOG_FILE_NAME"][:-4] + "_" + extension + "_lfq.txt")
 
 
 # Loading data
@@ -394,7 +391,7 @@ with log.newSection("Plotting aggregate consistent coelution counts"):
     tmp = ax[0].set_ylabel("Log(Aggregate frequency)")
     tmp = ax[1].boxplot(np.diff(neighbors.indptr), whis="range", vert=False, widths=0.5)
     tmp = ax[1].set_yticks([])
-    tmp = ax[1].set_xlabel("Edge count")
+    tmp = ax[1].set_xlabel("# Consistently co-eluting aggregates")
     # tmp = plt.show()
     tmp = plt.savefig(parameters["PLOTS_PATH"] + extension + "_lfq_aggregate_edge_counts.pdf", bbox_inches='tight')
     tmp = plt.close()
@@ -555,7 +552,7 @@ with log.newSection("Plotting consitent coelution accuracy"):
         ),
         loc="upper left"
     )
-    tmp = plt.xlabel("Consistenly co-eluting samples")
+    tmp = plt.xlabel("Consistently co-eluting samples")
     tmp = plt.xticks(
         np.arange(parameters["SAMPLE_COUNT"] - 1),
         np.arange(2, parameters["SAMPLE_COUNT"] + 1)

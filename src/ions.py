@@ -436,7 +436,10 @@ def estimateAlignmentParameters(
             # attribute_std = np.std(np.abs(data), axis=0)
             # ptp_limit = np.max(attribute_std * deviation_factor)
             attribute_std = np.sort(np.std(data, axis=0))
-            ptp_limit = np.sqrt(attribute_std[-1]**2 + attribute_std[-2]**2) * deviation_factor
+            if attribute == "CALIBRATED_RT":
+                ptp_limit = np.sqrt(attribute_std[-1]**2 + attribute_std[-2]**2)
+            else:
+                ptp_limit = np.sqrt(attribute_std[-1]**2 + attribute_std[-2]**2) * deviation_factor
             # ptps = np.ptp(estimation_anchors[attribute], axis=1)
             # if attribute in parameters["RELATIVE_ATTRIBUTES"]:
             #     ptps *= 1000000 / np.min(estimation_anchors[attribute], axis=1)

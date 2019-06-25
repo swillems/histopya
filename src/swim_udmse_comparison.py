@@ -10,7 +10,6 @@ import numpy as np
 import pandas as pd
 import scipy.sparse
 from matplotlib import pyplot as plt
-import matplolib as sns
 
 # Initializing
 parameter_file_name = "data/lfq_swim_udmse_combined/parameters_QC.json"
@@ -140,7 +139,7 @@ with log.newSection("Plotting mgf peaks"):
     fig, ax = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [5, 1]})
     tmp = plt.subplots_adjust(hspace=0.1)
     tmp = ax[0].scatter(a, np.log2(b), marker=".")
-    tmp = ax[0].set_ylabel("Log(Ion frequency)")
+    tmp = ax[0].set_ylabel("Log(Spectrum frequency)")
     tmp = ax[1].boxplot(spectrum_sizes, whis="range", vert=False, widths=0.5)
     tmp = ax[1].set_yticks([])
     tmp = ax[1].set_xlabel("Peak count")
