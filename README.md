@@ -12,7 +12,38 @@ The original paper providing more detail is available in the docs folder.
 
 ## Installation
 
-HistoPyA was developed on a Linux Centos 6 distribution, but should work on any Linux flavor with python3.6 installed. A complete installation (including a 300 mb test data set) is done with the following terminal commands, executed from wherever you want to install histopya:
+### Prerequisites
+
+HistoPyA was developed on a Linux Centos 6 distribution, but should work on any Linux flavor with python3.6 installed.
+
+#### Windows quirks
+
+For windows users, we advise to install a Linux shell (Ubuntu 18.04 was tested for compatability) on Windows 10 by following [these steps](https://docs.microsoft.com/en-us/windows/wsl/install-win10). Make sure you don't forget to [initialize linux at first usage](https://docs.microsoft.com/en-us/windows/wsl/install-win10#complete-initialization-of-your-distro) (note that this might take a while).
+
+Furthermore make sure python3.6 is callable directly and has the option to install a virtual environment by executing the commands (you might have to drop the .6 if 3.6 is generic python3):
+
+'''
+sudo apt install python3.6
+sudo apt install python3.6-venv
+sudo apt install python3.6-tk
+'''
+
+Finally, note that copy pasting of files to the (hidden) Linux folder similar to:
+
+'''
+C:\Users\sanwill\AppData\Local\Packages\CanonicalGroupLimited.Ubuntu18.04onWindows_79rhkp1fndgsc\LocalState\rootfs\home
+'''
+
+removes all permissions. These can be manually reset by a
+
+'''
+chmod -R 777 ~
+'''
+
+Tkinter has no agg on windows?
+
+### Download and install
+A complete installation (including a 300 mb test data set) is done with the following terminal commands, executed from wherever you want to install histopya:
 
 ```
 git clone https://github.com/swillems/histopya
@@ -29,6 +60,8 @@ Percolator can improve results, but is not essential to run histopya. If percola
 "PERCOLATOR_LOCATION": "/usr/local/bin/percolator",
 ```
 
+### Test installation
+
 To test if the installation was indeed successful, run the following command to fully analyze the test dataset, containing 10 minutes from sample A (65% human, 15% yeast, 20% ecoli), sample B (65% human, 30% yeast, 5% ecoli) and a QC in which both samples are pooled.
 
 ```
@@ -36,6 +69,8 @@ bash run_histopya.sh -p data/test/parameters.json
 ```
 
 ## Usage
+
+### Creation of ion-networks
 
 All input data is required to be in *.csv format, with columns containing centroided 4D peak-picked ion sticks: MZ, RT, DT and Intensity. A fifth column containing an integer stating which "function" this is (MS1 or MS2), is currently required as well, as original development was done on Waters' HDMSE data.
 
@@ -58,3 +93,11 @@ bash run_histopya.sh -p data/test/parameters.json
 All parameters available in "libs/defaults/default_parameters.json" can be overridden by a user-defined parameter file.
 
 Currently 4 *.json databases containing sequences and SwissProt PTMs are available: H. Sapiens, S. Cerevisiae, E. Coli and cRAP. Custom databases can easily be incorporated, but should be generated on by the user.
+
+### Interactive graphical browser
+
+Results can be visualized with
+
+```
+bash browse_results.sh -p data/test/parameters.json
+```
