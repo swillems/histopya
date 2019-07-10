@@ -12,7 +12,7 @@ import csv
 import os
 from contextlib import contextmanager
 import matplotlib
-matplotlib.use("Agg")
+matplotlib.use("Agg", warn=False)
 import seaborn as sns
 from matplotlib import pyplot as plt
 
@@ -68,11 +68,15 @@ def loadJSON(file_name, parameters, log=None):
     return json_dict
 
 
-def saveJSON(json_dict, file_name, parameters, log=None):
+def saveJSON(json_dict, file_name, parameters=None, log=None):
     ''' Saves a JSON dict to the corresponding file name in parameters'''
+    if parameters is None:
+        parameter_file_name = file_name
+    else:
+        parameter_file_name = parameters[file_name]
     if log is not None:
-        log.printIO(file_name, "Saving", parameters[file_name])
-    with open(parameters[file_name], "w") as outfile:
+        log.printIO(file_name, "Saving", parameter_file_name)
+    with open(parameter_file_name, "w") as outfile:
         json.dump(json_dict, outfile, indent=4, sort_keys=True)
 
 
@@ -175,6 +179,8 @@ class Log(object):
 
     def flush(self):
         self.file.flush()
+        self.original_stdout.flush()
+        self.original_stderr.flush()
 
     def printMessage(self, text=None):
         if text is not None:
@@ -185,6 +191,7 @@ class Log(object):
                     text
                 )
             )
+            self.flush()
 
     @contextmanager
     def newSection(self, text=None, newline=False):
@@ -542,75 +549,3 @@ def plotAnchorCounts(parameters, anchors, ions, log):
 # plt.show(plt.boxplot(avg_calibrated_logints))
 # import seaborn as sns
 # plt.show(sns.jointplot(avg_calibrated_logints[-1][::1000], cvs_calibrated[-1][::1000], kind="kde"))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#
-#
-#
-#
-#
-# anchor_intensities = anchor_ions.copy()
-# anchor_intensities.data = ions["CALIBRATED_INTENSITY"][anchor_intensities.data]
-# anchor_intensities = np.sum(anchor_intensities, axis=1).squeeze().A.flatten()
-# size_subsets = [
-#     np.flatnonzero(anchors["ION_COUNT"] == i) for i in range(
-#         1, parameters["SAMPLE_COUNT"] + 1
-#     )
-# ]
-#
-# plt.show(
-#     [
-#         plt.boxplot(
-#             [
-#                 np.log2(
-#                     anchor_intensities[subset][
-#                         anchors["LE"][subset]
-#                     ]
-#                 ) for subset in size_subsets
-#             ]
-#         )
-#     ] + [
-#         plt.ylabel("Log2(avg_intensity)"),
-#         plt.xlabel("Aggregate ion count"),
-#         plt.title("Low energy aggragates")
-#     ]
-# )
-#
-# plt.show(
-#     [
-#         plt.boxplot(
-#             [
-#                 np.log2(
-#                     anchor_intensities[subset][
-#                         ~anchors["LE"][subset]
-#                     ]
-#                 ) for subset in size_subsets
-#             ]
-#         )
-#     ] + [
-#         plt.ylabel("Log2(avg_intensity)"),
-#         plt.xlabel("Aggregate ion count"),
-#         plt.title("High energy aggragates")
-#     ]
-# )

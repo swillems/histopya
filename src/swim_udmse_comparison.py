@@ -102,7 +102,7 @@ with log.newSection("Plotting cvs"):
                     cints_udmse_cv,
                 ]
             ).T,
-            columns=["SWIM-DIA", "UDMSE"]
+            columns=["SWIM-DIA", "HDMSE"]
         ),
     )
     d["Y"] = 1

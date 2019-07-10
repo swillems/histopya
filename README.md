@@ -22,25 +22,25 @@ For windows users, we advise to install a Linux shell (Ubuntu 18.04 was tested f
 
 Furthermore make sure python3.6 is callable directly and has the option to install a virtual environment by executing the commands (you might have to drop the .6 if 3.6 is generic python3):
 
-'''
+```
 sudo apt install python3.6
 sudo apt install python3.6-venv
 sudo apt install python3.6-tk
-'''
+```
 
 Finally, note that copy pasting of files to the (hidden) Linux folder similar to:
 
-'''
+```
 C:\Users\sanwill\AppData\Local\Packages\CanonicalGroupLimited.Ubuntu18.04onWindows_79rhkp1fndgsc\LocalState\rootfs\home
-'''
+```
 
 removes all permissions. These can be manually reset by a
 
-'''
-chmod -R 777 ~
-'''
+```
+chmod -R 777 .
+```
 
-Tkinter has no agg on windows?
+Tkinter has no agg on windows? Go through mobaxterm
 
 ### Download and install
 A complete installation (including a 300 mb test data set) is done with the following terminal commands, executed from wherever you want to install histopya:

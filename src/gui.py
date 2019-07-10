@@ -2,7 +2,7 @@
 
 
 import matplotlib
-matplotlib.use("tkAgg")
+matplotlib.use("tkAgg", warn=False)
 import tkinter as tk
 import matplotlib.pyplot as plt
 import matplotlib.backends.backend_tkagg as tkagg
@@ -13,6 +13,11 @@ import src.aggregates
 import src.peptides
 import pandas as pd
 import numpy as np
+import PySimpleGUI as sg
+import os
+import subprocess
+import scipy
+import json
 
 
 class GUI(object):
@@ -21,7 +26,7 @@ class GUI(object):
         self.dataset = dataset
         self.root = tk.Tk()
         self.root.geometry("1500x800")
-        self.root.winfo_toplevel().title("HistoPyA Browser")
+        self.root.winfo_toplevel().title("Ion-network Browser")
         self.root_frame = tk.Frame(self.root, bd=1, relief="raised")
         self.root_frame.pack(fill="both", expand=1)
         self.__initOptionsFrame()
@@ -493,20 +498,34 @@ class Dataset(object):
                 self.parameters,
             )
             self.neighbors += self.neighbors.T
-        if "anchor_peptide_score" in kwargs:
-            self.anchor_peptide_score = kwargs["anchor_peptide_score"]
-        else:
-            self.anchor_peptide_scores = src.io.loadMatrix(
-                "ANCHOR_PEPTIDE_SCORES_FILE_NAME",
-                self.parameters,
+        try:
+            if "anchor_peptide_score" in kwargs:
+                self.anchor_peptide_scores = kwargs["anchor_peptide_score"]
+            else:
+                self.anchor_peptide_scores = src.io.loadMatrix(
+                    "ANCHOR_PEPTIDE_SCORES_FILE_NAME",
+                    self.parameters,
+                )
+            if "anchor_peptide_match_counts" in kwargs:
+                self.anchor_peptide_match_counts = kwargs["anchor_peptide_match_counts"]
+            else:
+                self.anchor_peptide_match_counts = src.io.loadMatrix(
+                    "ANCHOR_PEPTIDE_MATCH_COUNTS_FILE_NAME",
+                    self.parameters,
+                )
+            self.percolated_annotations = pd.read_csv(
+                self.parameters["PERCOLATOR_TARGET_PIMS"],
+                delimiter="\t"
             )
-        if "anchor_peptide_match_counts" in kwargs:
-            self.anchor_peptide_match_counts = kwargs["anchor_peptide_match_counts"]
-        else:
-            self.anchor_peptide_match_counts = src.io.loadMatrix(
-                "ANCHOR_PEPTIDE_MATCH_COUNTS_FILE_NAME",
-                self.parameters,
-            )
+            self.percolated_fdrs = self.percolated_annotations.values[:, 2]
+            self.percolated_anchors, self.percolated_peptides = self.anchor_peptide_match_counts.nonzero()
+        except FileNotFoundError:
+            self.anchor_peptide_scores = scipy.sparse.csr_matrix([])
+            self.anchor_peptide_match_counts = scipy.sparse.csr_matrix([])
+            self.percolated_annotations = pd.DataFrame()
+            self.percolated_fdrs = np.array([], dtype=np.int)
+            self.percolated_anchors = np.array([], dtype=np.int)
+            self.percolated_peptides = np.array([], dtype=np.int)
         self.proteins, self.total_protein_sequence, self.ptms, self.ptm_matrix = src.peptides.importProteinsAndPtms(
             self.parameters,
             self.log
@@ -518,12 +537,6 @@ class Dataset(object):
             self.parameters,
             self.log
         )
-        self.percolated_annotations = pd.read_csv(
-            self.parameters["PERCOLATOR_TARGET_PIMS"],
-            delimiter="\t"
-        )
-        self.percolated_fdrs = self.percolated_annotations.values[:, 2]
-        self.percolated_anchors, self.percolated_peptides = self.anchor_peptide_match_counts.nonzero()
         self.visible_nodes = np.array([], dtype=np.int)
         self.selected_nodes = np.array([], dtype=np.bool)
         self.node_labels = np.array([], dtype=np.bool)
@@ -714,10 +727,13 @@ class Dataset(object):
         pass
 
     def getSignificantPimsAnchorsAndPeptides(self, gui):
-        significant_pims = self.percolated_annotations.values[
-            self.percolated_fdrs <= gui.getFDRThreshold(),
-            0
-        ].astype(int)
+        try:
+            significant_pims = self.percolated_annotations.values[
+                self.percolated_fdrs <= gui.getFDRThreshold(),
+                0
+            ].astype(int)
+        except IndexError:
+            significant_pims = np.array([], dtype=np.int)
         significant_anchors = self.percolated_anchors[significant_pims]
         significant_peptides = self.percolated_peptides[significant_pims]
         return significant_pims, significant_anchors, significant_peptides
@@ -851,8 +867,212 @@ class Dataset(object):
 
 if __name__ == "__main__":
     import src.parameters
-    parameters = src.parameters.parseFromCommandLine()
+    parameters, action = src.parameters.parseFromCommandLine()
     dataset = Dataset(parameters)
     gui = GUI(dataset)
 
 # import src.gui; import importlib; importlib.reload(src.gui); d=src.gui.Dataset("data/tenzer/parameters.json"); g=src.gui.GUI(d)
+
+
+
+
+def GUIWrapper():
+    size = 25
+    parameter_file_name = ""
+    option_list = [
+        ["Select parameters", setParameters],
+        ["Create ion-network", createIonNetwork],
+        ["Annotate ion-network", annotateIonNetwork],
+        ["Browse ion-network", browseIonNetwork],
+    ]
+    option_dict = dict(option_list)
+    layout = [
+        [sg.Button(option, size=(size, 1))] for option, action in option_list
+    ]
+    window = sg.Window('Ion-network GUI').Layout(layout)
+    while True:
+        event, values = window.Read()
+        if event is None:
+            break
+        if event in option_dict:
+            if event == "Select parameters":
+                parameter_file_name = setParameters(parameter_file_name)
+            else:
+                if parameter_file_name == "":
+                    sg.PopupError("No parameter file selected")
+                else:
+                    option_dict[event](parameter_file_name)
+
+
+def setParameters(parameter_file_name):
+    layout = [
+        [
+            sg.Input(parameter_file_name, key="parameter_file_name"),
+            sg.FileBrowse(),
+            sg.Button("New"),
+            sg.Button("Modify")
+        ],
+        [sg.Button("OK"), sg.Button("Cancel")],
+    ]
+    window = sg.Window('Select parameter file').Layout(layout)
+    while True:
+        event, values = window.Read()
+        if (event is None) or (event == "Cancel"):
+            break
+        if event == "New":
+            parameter_file_name = readParameters()
+            window.Element("parameter_file_name").Update(parameter_file_name)
+        if event == "Modify":
+            parameter_file_name = values["parameter_file_name"]
+            parameter_file_name = readParameters(parameter_file_name)
+            window.Element("parameter_file_name").Update(parameter_file_name)
+        if event == "OK":
+            parameter_file_name = values["parameter_file_name"]
+            try:
+                parameters = src.parameters.importParameterDictFromJSON(
+                    parameter_file_name,
+                    save=True
+                )
+                break
+            except:
+                sg.PopupError("Not a valid parameter file")
+    window.Close()
+    return parameter_file_name
+
+
+def createIonNetwork(parameter_file_name):
+    command = " ".join(
+        ["./run_histopya.sh", "-p", parameter_file_name, "-a", "C"]
+    )
+    executeScript(command, "Create ion-network")
+
+
+def annotateIonNetwork(parameter_file_name):
+    command = " ".join(
+        ["./run_histopya.sh", "-p", parameter_file_name, "-a", "A"]
+    )
+    executeScript(command, "Annotate ion-network")
+
+
+def browseIonNetwork(parameter_file_name):
+    command = " ".join(
+        ["./browse_results.sh", "-p", parameter_file_name]
+    )
+    executeScript(command, "Browse ion-network")
+
+
+def executeScript(command, title):
+    layout = [
+        [sg.Output(size=(100, 30))],
+        [sg.Button("Close")]
+    ]
+    # print = sg.Print
+    window = sg.Window(title, layout)
+    window.ReadNonBlocking()
+    p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, bufsize=0)
+    while True:
+        line = p.stdout.readline()
+        if not line:
+            break
+        print(line.decode().rstrip())
+        window.ReadNonBlocking()
+    while True:
+        (event, value) = window.Read()
+        if (event is None) or (event == "Close"):
+            window.Close()
+            return
+
+
+def readParameters(parameter_file_name=None):
+    if parameter_file_name is None:
+        parameters = src.parameters.getDefaultParameters()
+    else:
+        try:
+            parameters = src.parameters.importParameterDictFromJSON(
+                parameter_file_name,
+                save=True
+            )
+        except:
+            sg.PopupError("Not a valid parameter file")
+            return
+    dict_layout = [
+        [
+            sg.Text(key, size=(50, 1)),
+            sg.InputText(value, key=key, enable_events=True)
+        ] for key, value in parameters.items() if (
+            isinstance(value, str)
+        )
+    ]
+    dict_layout += [
+        [
+            sg.Text(key, size=(50, 1)),
+            sg.Input(value, key=key, enable_events=True)
+        ] for key, value in parameters.items() if (
+            isinstance(value, int)
+        )
+    ]
+    buttons = [
+        # sg.SaveAs(
+        #     'Save',
+        #     file_types=(("JSON files", "*.json"),),
+        #     enable_events=True
+        # ),
+        sg.Button('Save as'),
+        sg.Button('Cancel')
+    ]
+    if parameter_file_name:
+        buttons = [sg.Button('Save')] + buttons
+    dict_layout += [buttons]
+    c = sg.Column(
+        dict_layout,
+        scrollable=True,
+        vertical_scroll_only=True,
+        # size=(700,300)
+    )
+    window = sg.Window(
+        'Read parameters',
+        size=(700, 800)
+    ).Layout(
+        [
+            [c],
+        ]
+    )
+    while True:
+        event, values = window.Read()
+        if (event is None) or (event == "Cancel"):
+            break
+        # if event in parameters:
+        #     try:
+        #         cast_event = type(parameters[event])(values[event])
+        #         window.Element(event).Update(cast_event)
+        #     except ValueError:
+        #         window.Element(event).Update(parameters[event])
+        if (event == "Save as") or (event == "Save"):
+            for value in values:
+                if value not in parameters:
+                    continue
+                try:
+                    cast_value = type(parameters[value])(values[value])
+                    parameters[value] = cast_value
+                except ValueError:
+                    sg.PopupError("Wrong format for {}".format(value))
+                    break
+            else:
+                if (event == "Save as"):
+                    parameter_file_name = tk.filedialog.asksaveasfilename(
+                        filetypes=(("JSON files", "*.json"),),
+                        defaultextension="*.json"
+                    )
+                    # parameter_file_name = sg.PopupGetFile(
+                    #     "Save parameters as",
+                    #     save_as=True,
+                    #     file_types=(("JSON files", "*.json"),)
+                    # )
+                if parameter_file_name:
+                    src.io.saveJSON(
+                        parameters,
+                        parameter_file_name,
+                    )
+                    break
+    window.Close()
+    return parameter_file_name

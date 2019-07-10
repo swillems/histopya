@@ -27,9 +27,24 @@ def parseFromCommandLine():
         help="Parameter file (JSON format)",
         required=True,
     )
+    parser.add_argument(
+        "-a",
+        "--action",
+        help="(C)reate, (A)nnotate, (F)ully analyze or (B)rowse ion-network (default=F)",
+        choices=["C", "A", "F", "B"],
+        default="F",
+    )
     parameter_file_name = parser.parse_args().parameter_file_name
     parameters = src.parameters.importParameterDictFromJSON(parameter_file_name)
-    return parameters
+    action = parser.parse_args().action
+    return parameters, action
+
+
+def getDefaultParameters():
+    return src.io.loadJSON(
+        DEFAULT_PARAMETERS_FILE_NAME,
+        parameters=None
+    )
 
 
 def importParameterDictFromJSON(parameter_file_name, save=True):
@@ -39,10 +54,7 @@ def importParameterDictFromJSON(parameter_file_name, save=True):
         print("*" * 12)
         print("* HistoPyA *")
         print("*" * 12)
-        parameters = src.io.loadJSON(
-            DEFAULT_PARAMETERS_FILE_NAME,
-            parameters=None
-        )
+        parameters = getDefaultParameters()
         user_defined_parameters = src.io.loadJSON(
             parameter_file_name,
             parameters=None
@@ -65,7 +77,8 @@ def importParameterDictFromJSON(parameter_file_name, save=True):
         print(traceback.format_exc())
         print("ERROR: Parameters could not be imported.")
         print("       HistoPyA was aborted!")
-        sys.exit(0)
+        raise
+        # sys.exit(0)
     return parameters
 
 
