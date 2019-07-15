@@ -10,6 +10,7 @@ import traceback as tb
 import pandas as pd
 import csv
 import os
+import zipfile
 from contextlib import contextmanager
 import matplotlib
 matplotlib.use("Agg", warn=False)
@@ -93,6 +94,10 @@ def loadArrayFromCsv(file_name, parameters, log=None, use_cols=None):
             usecols=use_cols
         ).values[:, np.argsort(np.argsort(use_cols))]
     return array
+
+
+def loadParametersFromINET(input_file_name):
+    pass
 
 
 def saveListOfListsToCsv(

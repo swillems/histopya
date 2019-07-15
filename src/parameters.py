@@ -15,8 +15,14 @@ DEFAULT_PARAMETERS_FILE_NAME = "lib/defaults/default_parameters.json"
 AUTO_COMPLETE_PATTERN = "(\[.*\])"
 
 
+class ParameterError(Exception):
+
+    def __init__(self, original_exception):
+        print("ParameterError")
+        raise original_exception
+
+
 def parseFromCommandLine():
-    '''TODO comment'''
     import argparse
     parser = argparse.ArgumentParser(
         description="Run HistoPyA"
@@ -30,8 +36,8 @@ def parseFromCommandLine():
     parser.add_argument(
         "-a",
         "--action",
-        help="(C)reate, (A)nnotate, (F)ully analyze or (B)rowse ion-network (default=F)",
-        choices=["C", "A", "F", "B"],
+        help="(C)reate, (A)nnotate, (F)ull, (B)rowse or (G)UI (default=F)",
+        choices=["C", "A", "F", "B", "G"],
         default="F",
     )
     parameter_file_name = parser.parse_args().parameter_file_name
@@ -47,39 +53,56 @@ def getDefaultParameters():
     )
 
 
-def importParameterDictFromJSON(parameter_file_name, save=True):
-    ''' Returns a dictionary with all auto-parsed and
-        default-completed parameters from a JSON file'''
+def updateParameters(parameters, parameter_file_name=None):
     try:
-        print("*" * 12)
-        print("* HistoPyA *")
-        print("*" * 12)
-        parameters = getDefaultParameters()
-        user_defined_parameters = src.io.loadJSON(
-            parameter_file_name,
-            parameters=None
-        )
-        # TODO partial update for subdicts
-        parameters.update(user_defined_parameters)
+        if parameter_file_name is not None:
+            user_defined_parameters = src.io.loadJSON(
+                parameter_file_name,
+                parameters=None
+            )
+            parameters.update(user_defined_parameters)
         __autoCompleteAllParameters(parameters)
-        __createPaths(parameters)
         __parseMultiprocessingParameters(parameters)
         __parseSamples(parameters)
         __updateDependancies(parameters)
         __setVersion(parameters)
-        if save:
-            src.io.saveJSON(
-                parameters,
-                "FULL_PARAMETERS_FILE_NAME",
-                parameters
-            )
-    except Exception:
-        print(traceback.format_exc())
-        print("ERROR: Parameters could not be imported.")
-        print("       HistoPyA was aborted!")
-        raise
-        # sys.exit(0)
+    except Exception as e:
+        raise ParameterError(e)
     return parameters
+
+
+def importParameterDictFromJSON(parameter_file_name, save=True):
+    print("Reading parameters")
+    parameters = getDefaultParameters()
+    parameters = updateParameters(parameters, parameter_file_name)
+    __createPaths(parameters)
+    if save:
+        src.io.saveJSON(
+            parameters,
+            "FULL_PARAMETERS_FILE_NAME",
+            parameters
+        )
+    # except Exception:
+    #     print(traceback.format_exc())
+    #     print("ERROR: Parameters could not be imported.")
+    #     print("       HistoPyA was aborted!")
+    #     raise
+    #     # sys.exit(0)
+    return parameters
+
+
+# def __userDefinedUpdate(key, value, parameters):
+#     if isinstance(value, dict):
+#         for sub_key, sub_value in value.items():
+#             parameters = __userDefinedUpdate(key + [sub_key], sub_value, parameters)
+#     else:
+#         if len(key) == 1:
+#             parameters[key[0]] = value
+#         if len(key) == 2:
+#             parameters[key[0]][key[1]] = value
+#         if len(key) == 3:
+#             parameters[key[0]][key[1]][key[2]] = value
+#     return parameters
 
 
 def __autoCompleteAllParameters(parameters):
@@ -207,12 +230,11 @@ def __setVersion(parameters):
         if file_name.startswith("version_"):
             current_version = file_name
             break
-    if (
-        parameters["VERSION"] != "docs/version_x.x.x"
-    ) and (
-        parameters["VERSION"] != current_version
-    ):
-        print("WARNING: current version differs from defined version")
+    if parameters["VERSION"] not in [
+        "docs/version_x.x.x",
+        current_version
+    ]:
+        print("WARNING: versions are different!")
     parameters["VERSION"] = current_version
 
 
