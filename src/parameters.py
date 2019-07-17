@@ -17,9 +17,9 @@ AUTO_COMPLETE_PATTERN = "(\[.*\])"
 
 class ParameterError(Exception):
 
-    def __init__(self, original_exception):
-        print("ParameterError")
-        raise original_exception
+    def __init__(self, message, errors):
+        super().__init__(message)
+        self.errors = errors
 
 
 def parseFromCommandLine():
@@ -67,7 +67,7 @@ def updateParameters(parameters, parameter_file_name=None):
         __updateDependancies(parameters)
         __setVersion(parameters)
     except Exception as e:
-        raise ParameterError(e)
+        raise ParameterError("No proper parameters found for input file", e)
     return parameters
 
 
@@ -236,6 +236,19 @@ def __setVersion(parameters):
     ]:
         print("WARNING: versions are different!")
     parameters["VERSION"] = current_version
+
+
+def importParameters(input_file_name):
+    try:
+        parameters = getDefaultParameters()
+        parameters = src.parameters.updateParameters(
+            parameters,
+            input_file_name
+        )
+        __createPaths(parameters)
+    except ParameterError as e:
+        raise e
+    return parameters
 
 
 if __name__ == '__main__':

@@ -7,20 +7,86 @@ import src.aggregates
 import src.peptides
 import src.parameters
 import src.gui
+import numpy as np
 
 
 class IonNetwork(object):
 
-    def __init__(self, input_file_name, pre_exists):
-        self.is_created = False
-        self.is_annotated = False
-        if not pre_exists:
-            self.parameters = src.parameters.updateParameters(
-                src.parameters.getDefaultParameters(),
-                input_file_name
+    def __init__(self, input_file_name):
+        self.parameters = src.parameters.importParameters(input_file_name)
+
+    def hasIons(self):
+        return hasattr(self, "ions")
+
+    def hasQuickClusters(self):
+        # TODO define
+        return hasattr(self, "quick_clusters")
+
+    def isRTCalibrated(self):
+        if not self.hasIons():
+            return False
+        if self.ions[0]["RT"] != self.ions[0]["CALIBRATED_RT"]:
+            return True
+        return np.any(self.ions["RT"] != self.ions["CALIBRATED_RT"])
+
+    def isDTCalibrated(self):
+        if not self.hasIons():
+            return False
+        if np.any(self.ions[0]["DT"] != self.ions[0]["CALIBRATED_DT"]):
+            return True
+        return np.any(self.ions["DT"] != self.ions["CALIBRATED_DT"])
+
+    def isMZCalibrated(self):
+        if not self.hasIons():
+            return False
+        if np.any(self.ions[0]["MZ"] != self.ions[0]["CALIBRATED_MZ"]):
+            return True
+        return np.any(self.ions["MZ"] != self.ions["CALIBRATED_MZ"])
+
+    def isPairwiseAligned(self):
+        if not self.hasIons():
+            return False
+        if np.any(self.ions[0]["AGGREGATE_INDEX"] > 0):
+            return True
+        return np.any(self.ions["AGGREGATE_INDEX"] > 0)
+
+    def isNormalized(self):
+        if not self.hasIons():
+            return False
+        if np.any(self.ions[0]["INTENSITY"] != self.ions[0]["CALIBRATED_INTENSITY"]):
+            return True
+        return np.any(self.ions["INTENSITY"] != self.ions["CALIBRATED_INTENSITY"])
+
+    def hasNodes(self):
+        return (
+            hasattr(
+                self,
+                "aggregates"
+            ) and hasattr(
+                self,
+                "aggregate_ions"
             )
-        else:
-            self.parameters = src.io.loadParametersFromINET(input_file_name)
+        )
+
+    def hasEdges(self):
+        return hasattr(self, "neighbors")
+
+    def isCreated(self):
+        return (self.hasNodes() and self.hasEdges())
+
+    def hasFragmentTargets(self):
+        return hasattr(self, "fragments")
+
+    def isAnnotated(self):
+        return (
+            hasattr(
+                self,
+                "anchor_peptide_scores"
+            ) and hasattr(
+                self,
+                "anchor_peptide_match_counts"
+            )
+        )
 
     def create(self):
         with src.io.Log(self.parameters["LOG_FILE_NAME"]) as log:
@@ -51,11 +117,12 @@ class IonNetwork(object):
                     log,
                 )
                 # TODO plotting
-                src.io.plotEstimates(
-                    estimation_aggregates,
-                    self.parameters,
-                    log
-                )
+                # src.io.plotEstimates(
+                #     estimation_aggregates,
+                #     self.parameters,
+                #     log
+                # )
+                # src.io.plotCalibrationResults(estimation_aggregates, self.parameters, log)
                 ions, neighbors = src.ions.detectAllIonNeighbors(
                     ions,
                     ion_alignment_parameters,
@@ -64,23 +131,23 @@ class IonNetwork(object):
                     save=self.parameters["SAVE_UNFILTERED_IONS"]
                 )
                 # importlib.reload(src.ions)
-                anchors, anchor_ions, ions = src.aggregates.defineFromIons(
+                aggregates, aggregate_ions, ions = src.aggregates.defineFromIons(
                     ions,
                     self.parameters,
                     log
                 )
                 # TODO
-                src.io.plotAnchorCounts(self.parameters, anchors, ions, log)
+                # src.io.plotAnchorCounts(self.parameters, aggregates, ions, log)
                 ions = src.ions.calibrateIntensities(
                     ions,
-                    anchor_ions,
+                    aggregate_ions,
                     self.parameters,
                     log
                 )
                 quick_isotopic_pairs = src.aggregates.findQuickIsotopes(
                     ions,
-                    anchors,
-                    anchor_ions,
+                    aggregates,
+                    aggregate_ions,
                     ion_alignment_parameters,
                     self.parameters,
                     log
@@ -88,14 +155,14 @@ class IonNetwork(object):
                 anchor_alignment_parameters = src.aggregates.estimateAlignmentParameters(
                     ions,
                     quick_isotopic_pairs,
-                    anchor_ions,
+                    aggregate_ions,
                     self.parameters,
                     log
                 )
-                anchors, ions = src.aggregates.calibrateChannelDriftShift(
+                aggregates, ions = src.aggregates.calibrateChannelDriftShift(
                     ions,
-                    anchor_ions,
-                    anchors,
+                    aggregate_ions,
+                    aggregates,
                     ion_alignment_parameters,
                     anchor_alignment_parameters,
                     self.parameters,
@@ -105,8 +172,8 @@ class IonNetwork(object):
                 # anchor_alignment_parameters['RT'] = (np.array(anchor_alignment_parameters['RT'])*3).tolist()
                 neighbors = src.aggregates.detectAllAnchorNeighbors(
                     ions,
-                    anchors,
-                    anchor_ions,
+                    aggregates,
+                    aggregate_ions,
                     anchor_alignment_parameters,
                     self.parameters,
                     log
@@ -118,16 +185,7 @@ class IonNetwork(object):
         parameters = self.parameters
         with src.io.Log(parameters["LOG_FILE_NAME"]) as log:
             with log.newSection("Annotating ion-network"):
-                anchors = src.io.loadArray("ANCHORS_FILE_NAME", parameters)
-                anchor_ions = src.io.loadMatrix(
-                    "ANCHOR_IONS_FILE_NAME",
-                    parameters,
-                )
-                ions = src.io.loadArray("IONS_FILE_NAME", parameters)
-                ion_alignment_parameters = src.io.loadJSON(
-                    "ION_ALIGNMENT_PARAMETERS_FILE_NAME",
-                    parameters,
-                )
+                aggregates = src.io.loadArray("ANCHORS_FILE_NAME", parameters)
                 anchor_alignment_parameters = src.io.loadJSON(
                     "ANCHOR_ALIGNMENT_PARAMETERS_FILE_NAME",
                     parameters,
@@ -137,7 +195,7 @@ class IonNetwork(object):
                     parameters,
                 )
                 neighbors += neighbors.T
-                # src.aggregates.writeMgf(neighbors, anchors, anchor_ions, ions, parameters, log)
+                # src.aggregates.writeMgf(neighbors, aggregates, aggregate_ions, ions, parameters, log)
                 base_mass_dict = src.peptides.loadBaseMassDict(parameters, log)
                 proteins, total_protein_sequence, ptms, ptm_matrix = src.peptides.importProteinsAndPtms(
                     parameters,
@@ -160,13 +218,13 @@ class IonNetwork(object):
                 )
                 anchor_boundaries, fragment_peptide_indices, fragment_indices = src.aggregates.matchAnchorsToFragments(
                     fragments,
-                    anchors,
+                    aggregates,
                     base_mass_dict,
                     parameters,
                     log
                 )
                 anchor_peptide_scores, anchor_peptide_match_counts = src.aggregates.getAnchorPeptideMatrix(
-                    anchors,
+                    aggregates,
                     neighbors,
                     peptides,
                     anchor_boundaries,
@@ -184,7 +242,7 @@ class IonNetwork(object):
                 )
                 precursor_indices = src.aggregates.findFragmentPrecursors(
                     anchor_peptide_match_counts,
-                    anchors,
+                    aggregates,
                     neighbors,
                     anchor_alignment_parameters,
                     peptide_masses,
@@ -193,7 +251,7 @@ class IonNetwork(object):
                     log
                 )
                 annotation_data = src.aggregates.writePercolatorFile(
-                    anchors,
+                    aggregates,
                     base_mass_dict,
                     anchor_peptide_match_counts,
                     fragments,
@@ -219,13 +277,17 @@ class IonNetwork(object):
         gui = src.gui.GUI(dataset)
 
     def exportAggregates(self):
+        # TODO
         print("Dummy for exportAggregates function")
 
     def exportIons(self):
+        # TODO
         print("Dummy for exportIons function")
 
     def exportEdges(self):
+        # TODO
         print("Dummy for exportEdges function")
 
     def exportAnnotations(self):
+        # TODO
         print("Dummy for exportAnnotations function")

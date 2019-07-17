@@ -40,7 +40,7 @@ removes all permissions. These can be manually reset by a
 chmod -R 777 .
 ```
 
-Tkinter has no agg on windows? Go through mobaxterm
+Tkinter has no agg on windows? Go through mobaxterm. Make a WSL bookmark with "Run at startup" set to "cd histopya; bash run_gui.sh" and copy paste the "windows_shortcut.cmd" to your windows to run histopya GUI with a single double-click.
 
 ### Download and install
 A complete installation (including a 300 mb test data set) is done with the following terminal commands, executed from wherever you want to install histopya:

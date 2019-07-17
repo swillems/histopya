@@ -574,3 +574,7 @@ if __name__ == "__main__":
 # percolator percolator.csv --results-psms percolator/target_pims.csv --results-peptides percolator/target_peptides.csv --decoy-results-psms percolator/decoy_pims.csv -I "concatenated" -A --results-proteins percolator/target_proteins.csv -P DECOY_ -x -D 15 2>&1 | tee percolator/percolator_log.txt
 
 # awk '$3 < 0.01' data/480_PharmaFluidics/results/percolator/target_pims.csv | cut -f 6 | cut -d "_" -f 2 | sort | uniq -c
+
+
+
+# for i in {0..9}; do awk '(($4 > 50)&& ($4 < 55)) || NR==1' data/ecoli_sonar/apex/28Oct2016_06"$i"_Apex3DIons.csv > data/test_sonar/apex/sample_"$i".csv; done

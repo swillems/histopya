@@ -33,28 +33,20 @@ def argumentParser():
 if __name__ == "__main__":
     parser = argumentParser()
     input_file_name = parser.parse_args().input_file_name
-    actions = parser.parse_args().actions_to_take
+    actions = parser.parse_args().actions_to_take.upper()
     # exports = parser.parse_args().export_results
-    extension = input_file_name.split(".")[-1].lower()
-    if extension not in ["json", "inet"]:
-        print("The input_file_name extension is not valid")
-    else:
-        pre_exists = extension == "inet"
-        ion_network = src.ion_network.IonNetwork(
-            input_file_name,
-            pre_exists
-        )
-        if "C" in actions:
-            ion_network.create()
-        if "A" in actions:
-            ion_network.annotate()
-        if "B" in actions:
-            ion_network.browse()
-        # if "A" in exports:
-        #     ion_network.exportAggregates()
-        # if "I" in exports:
-        #     ion_network.exportIons()
-        # if "E" in exports:
-        #     ion_network.exportEdges()
-        # if "P" in exports:
-        #     ion_network.exportAnnotations()
+    ion_network = src.ion_network.IonNetwork(input_file_name)
+    if "C" in actions:
+        ion_network.create()
+    if "A" in actions:
+        ion_network.annotate()
+    if "B" in actions:
+        ion_network.browse()
+    # if "A" in exports:
+    #     ion_network.exportAggregates()
+    # if "I" in exports:
+    #     ion_network.exportIons()
+    # if "E" in exports:
+    #     ion_network.exportEdges()
+    # if "P" in exports:
+    #     ion_network.exportAnnotations()

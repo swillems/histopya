@@ -10,7 +10,6 @@ import traceback as tb
 import pandas as pd
 import csv
 import os
-import zipfile
 from contextlib import contextmanager
 import matplotlib
 matplotlib.use("Agg", warn=False)
@@ -94,10 +93,6 @@ def loadArrayFromCsv(file_name, parameters, log=None, use_cols=None):
             usecols=use_cols
         ).values[:, np.argsort(np.argsort(use_cols))]
     return array
-
-
-def loadParametersFromINET(input_file_name):
-    pass
 
 
 def saveListOfListsToCsv(
@@ -239,318 +234,84 @@ class Log(object):
         return self.file_name
 
 
-if __name__ == '__main__':
-    pass
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# TODO moved from ions!!!!
-def plotEstimates(
-    pseudo_aggregate_ions,
-    parameters,
-    log
-):
-    plot_attributes = [
-        "MZ",
-        "RT",
-        "DT",
-        "INTENSITY",
-        "CALIBRATED_MZ",
-        "CALIBRATED_RT",
-        "CALIBRATED_DT",
-        "CALIBRATED_INTENSITY"
-    ]
-    plotAnchorDistributions(
-        pseudo_aggregate_ions,
-        plot_attributes,
-        parameters,
-        log
-    )
-    plotAnchors(pseudo_aggregate_ions, plot_attributes, parameters, log)
-
-
-def plotAnchors(
-    estimation_anchors,
-    plot_attributes,
-    parameters,
-    log
-):
-    with log.newSection("Saving estimation aggregate plots"):
-        figure_names = parameters["QUICK_ANCHOR_PLOTS"]
-        plot_width = parameters["PLOT_WIDTH"]
-        plot_height = parameters["PLOT_HEIGHT"]
-        for attribute in plot_attributes:
-            log.printMessage("Saving {} plot".format(attribute))
-            for anchor in estimation_anchors:
-                plt.plot(anchor[attribute], anchor["SAMPLE"])
-            plt.xlabel(attribute)
-            plt.ylabel("SAMPLE")
-            # plt.get_current_fig_manager().resize(
-            #     width=plot_width,
-            #     height=plot_height
-            # )
-            plt.savefig(figure_names[attribute], bbox_inches='tight')
-            plt.close()
-
-
-def plotAnchorDistributions(
-    estimation_anchors,
-    plot_attributes,
-    parameters,
-    log
-):
-    def summarizeAnchors(estimation_anchors, parameters, log):
-        log.printMessage("Summarizing estimation aggregates")
-        anchors = np.empty(
-            len(estimation_anchors),
-            dtype=estimation_anchors.dtype
+def plotCalibrationResults(estimation_aggregates, parameters, log):
+    # Plot calibration
+    with log.newSection("Plotting calibration results"):
+        # estimation_aggregates = loadArray(
+        #     "PSEUDO_AGGREGATE_IONS_FILE_NAME",
+        #     parameters,
+        #     log
+        # )[1::2]
+        fig, ax = plt.subplots(2, 3, sharex="col", sharey=True)
+        tmp = plt.subplots_adjust(hspace=0.1, wspace=0.1)
+        quick_aggregates = np.empty(
+            len(estimation_aggregates),
+            dtype=estimation_aggregates.dtype
         )
-        for attribute in anchors.dtype.names:
-            anchors[attribute] = np.average(estimation_anchors[attribute], axis=1)
-        return anchors
-    with log.newSection("Saving estimation aggregate distribution plots"):
-        anchors = summarizeAnchors(estimation_anchors, parameters, log)
-        figure_names = parameters["QUICK_ANCHOR_DISTRIBUTION_PLOTS"]
-        plot_width = parameters["PLOT_WIDTH"]
-        plot_height = parameters["PLOT_HEIGHT"]
-        for attribute in plot_attributes:
-            log.printMessage("Saving {} distribution plot".format(attribute))
-            average_attribute = anchors[attribute].reshape((-1, 1))
-            data = estimation_anchors[attribute] - average_attribute
+        for attribute in quick_aggregates.dtype.names:
+            quick_aggregates[attribute] = np.average(estimation_aggregates[attribute], axis=1)
+        for attribute, x_loc, y_loc in [
+            ("MZ", 0, 0),
+            ("CALIBRATED_MZ", 0, 1),
+            ("DT", 1, 0),
+            ("CALIBRATED_DT", 1, 1),
+            ("RT", 2, 0),
+            ("CALIBRATED_RT", 2, 1),
+        ]:
+            average_attribute = quick_aggregates[attribute].reshape((-1, 1))
+            data = estimation_aggregates[attribute] - average_attribute
             if attribute in parameters["RELATIVE_ATTRIBUTES"]:
                 data *= 1000000 / average_attribute
                 label = "{} PPM".format(attribute)
             else:
                 label = attribute
-            sns.violinplot(
-                x='variable',
-                y='value',
+            tmp = sns.violinplot(
+                x='value',
+                y='variable',
                 data=pd.melt(
                     pd.DataFrame(
                         data
                     ),
-                )
+                ),
+                ax=ax[y_loc, x_loc],
+                inner=None,
+                orient="h"
             )
-            plt.xlabel("SAMPLE")
-            plt.ylabel("{} distance to aggregate averages".format(label))
-            # plt.get_current_fig_manager().resize(
-            #     width=plot_width,
-            #     height=plot_height
-            # )
-            plt.savefig(figure_names[attribute], bbox_inches='tight')
-            plt.close()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#TODO moved from anchors
-def plotAnchorCounts(parameters, anchors, ions, log):
-    log.printMessage("Saving aggregate count plots")
-    figure_names = parameters["ANCHOR_COUNT_PLOTS"]
-    plot_width = parameters["PLOT_WIDTH"]
-    plot_height = parameters["PLOT_HEIGHT"]
-    le_ions = ions[np.flatnonzero(ions["LE"])]
-    he_ions = ions[np.flatnonzero(np.logical_not(ions["LE"]))]
-    for attribute, ion_set in {
-        "LE": le_ions,
-        "HE": he_ions
-    }.items():
-        for sample in range(parameters["SAMPLE_COUNT"]):
-            sample_anchors = ion_set["AGGREGATE_INDEX"][ion_set["SAMPLE"] == sample]
-            counts, frequencies = np.unique(
-                anchors["ION_COUNT"][sample_anchors],
-                return_counts=True
-            )
-            plt.plot(counts, frequencies)
-        plt.xlabel("Aggregate size")
-        plt.ylabel("Frequency")
-        # plt.get_current_fig_manager().resize(
-        #     width=plot_width,
-        #     height=plot_height
-        # )
-        plt.savefig(figure_names[attribute], bbox_inches='tight')
-        plt.close()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#
-#
-# selected_anchor_ions = [
-#     np.concatenate(
-#         [
-#             anchor_ions.data[
-#                 anchor_ions.indptr[j]: anchor_ions.indptr[j + 1]
-#             ] for j in np.flatnonzero(anchors["ION_COUNT"] == i)
-#         ]
-#     ).reshape(-1, i) for i in range(3, parameters["SAMPLE_COUNT"] + 1)
-# ]
-# cvs_normal = [
-#     scipy.stats.variation(ions["INTENSITY"][m], axis=1) for m in selected_anchor_ions
-# ]
-# cvs_calibrated = [
-#     scipy.stats.variation(ions["CALIBRATED_INTENSITY"][m], axis=1) for m in selected_anchor_ions
-# ]
-# plt.show(plt.boxplot(cvs_normal))
-# plt.show(plt.boxplot(cvs_calibrated))
-# [
-#     plt.show(
-#         [
-#             plt.plot(
-#                 np.percentile(
-#                     a,
-#                     range(101)
-#                 )
-#             ),
-#             plt.plot(
-#                 np.percentile(
-#                     b,
-#                     range(101)
-#                 )
-#             )
-#         ]
-#     ) for a, b in zip(cvs_normal[::-1], cvs_calibrated[::-1])
-# ]
-#
-# avg_calibrated_logints = [
-#     np.log(np.average(ions["CALIBRATED_INTENSITY"][m], axis=1)) for m in selected_anchor_ions
-# ]
-# plt.show(plt.boxplot(avg_calibrated_logints))
-# import seaborn as sns
-# plt.show(sns.jointplot(avg_calibrated_logints[-1][::1000], cvs_calibrated[-1][::1000], kind="kde"))
+            tmp = ax[y_loc, x_loc].axes.get_xaxis().set_visible(False)
+            tmp = ax[y_loc, x_loc].axes.get_yaxis().set_visible(False)
+            tmp = ax[y_loc, x_loc].set_xlabel("")
+            tmp = ax[y_loc, x_loc].set_ylabel("")
+        tmp = ax[0, 0].set_title(u"Δ MZ (ppm)")
+        tmp = ax[0, 1].set_title(u"Δ DT")
+        tmp = ax[0, 2].set_title(u"Δ RT")
+        tmp = ax[1, 0].axes.get_xaxis().set_visible(True)
+        tmp = ax[1, 1].axes.get_xaxis().set_visible(True)
+        tmp = ax[1, 2].axes.get_xaxis().set_visible(True)
+        tmp = ax[0, 2].yaxis.set_label_position("right")
+        tmp = ax[1, 2].yaxis.set_label_position("right")
+        tmp = ax[0, 2].set_ylabel("Uncalibrated")
+        tmp = ax[1, 2].set_ylabel("Calibrated")
+        tmp = ax[0, 2].axes.get_yaxis().set_visible(True)
+        tmp = ax[1, 2].axes.get_yaxis().set_visible(True)
+        tmp = ax[0, 2].tick_params(axis='y', which='both', left=False)
+        tmp = ax[1, 2].tick_params(axis='y', which='both', left=False)
+        tmp = ax[0, 0].get_yaxis().set_ticklabels(
+            [
+                "Sample {}".format(x.split("_")[-2]) for x in parameters["APEX_FILE_NAMES"]
+            ]
+        )
+        tmp = ax[1, 0].get_yaxis().set_ticklabels(
+            [
+                "Sample {}".format(x.split("_")[-2]) for x in parameters["APEX_FILE_NAMES"]
+            ]
+        )
+        tmp = ax[0, 0].axes.get_yaxis().set_visible(True)
+        tmp = ax[1, 0].axes.get_yaxis().set_visible(True)
+        # plt.show()
+        tmp = plt.savefig(parameters["PLOTS_PATH"] + "_calibration.pdf", bbox_inches='tight')
+        tmp = plt.close()
+
+
+
+if __name__ == '__main__':
+    pass

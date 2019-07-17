@@ -1,12 +1,9 @@
 #!venv/bin/python
 
 
-# import tkinter as tk
+import tkinter as tk
 import src.parameters
 import src.io
-import src.ions
-import src.aggregates
-import src.peptides
 import PySimpleGUI as sg
 import subprocess
 
@@ -69,7 +66,7 @@ def setParameters(parameter_file_name):
                     save=True
                 )
                 break
-            except:
+            except src.parameters.ParameterError:
                 sg.PopupError("Not a valid parameter file")
     window.Close()
     return parameter_file_name
@@ -77,21 +74,21 @@ def setParameters(parameter_file_name):
 
 def createIonNetwork(parameter_file_name):
     command = " ".join(
-        ["./run_cmd.sh", "-i", parameter_file_name, "-a", "C"]
+        ["bash run_cmd.sh", "-i", parameter_file_name, "-a", "C"]
     )
     executeScript(command, "Create ion-network")
 
 
 def annotateIonNetwork(parameter_file_name):
     command = " ".join(
-        ["./run_cmd.sh", "-i", parameter_file_name, "-a", "A"]
+        ["bash run_cmd.sh", "-i", parameter_file_name, "-a", "A"]
     )
     executeScript(command, "Annotate ion-network")
 
 
 def browseIonNetwork(parameter_file_name):
     command = " ".join(
-        ["./run_cmd.sh", "-i", parameter_file_name, "-a", "B"]
+        ["bash run_cmd.sh", "-i", parameter_file_name, "-a", "B"]
     )
     executeScript(command, "Browse ion-network")
 
@@ -128,9 +125,9 @@ def readParameters(parameter_file_name=None):
         try:
             parameters = src.parameters.importParameterDictFromJSON(
                 parameter_file_name,
-                save=True
+                save=False
             )
-        except:
+        except src.parameters.ParameterError:
             sg.PopupError("Not a valid parameter file")
             return
     dict_layout = [
@@ -150,11 +147,6 @@ def readParameters(parameter_file_name=None):
         )
     ]
     buttons = [
-        # sg.SaveAs(
-        #     'Save',
-        #     file_types=(("JSON files", "*.json"),),
-        #     enable_events=True
-        # ),
         sg.Button('Save as'),
         sg.Button('Cancel')
     ]
@@ -169,7 +161,7 @@ def readParameters(parameter_file_name=None):
     )
     window = sg.Window(
         'Read parameters',
-        size=(700, 800)
+        size=(800, 800)
     ).Layout(
         [
             [c],
@@ -179,33 +171,25 @@ def readParameters(parameter_file_name=None):
         event, values = window.Read()
         if (event is None) or (event == "Cancel"):
             break
-        # if event in parameters:
-        #     try:
-        #         cast_event = type(parameters[event])(values[event])
-        #         window.Element(event).Update(cast_event)
-        #     except ValueError:
-        #         window.Element(event).Update(parameters[event])
         if (event == "Save as") or (event == "Save"):
-            for value in values:
-                if value not in parameters:
-                    continue
-                try:
-                    cast_value = type(parameters[value])(values[value])
-                    parameters[value] = cast_value
-                except ValueError:
-                    sg.PopupError("Wrong format for {}".format(value))
-                    break
+            for key, value in values.items():
+                if key in parameters:
+                    if parameters[key] is None:
+                        parameters[key] = value
+                    else:
+                        try:
+                            cast_value = type(parameters[key])(value)
+                        except ValueError:
+                            sg.PopupError("Wrong format for {}".format(value))
+                            break
+                        else:
+                            parameters[key] = cast_value
             else:
                 if (event == "Save as"):
                     parameter_file_name = tk.filedialog.asksaveasfilename(
                         filetypes=(("JSON files", "*.json"),),
                         defaultextension="*.json"
                     )
-                    # parameter_file_name = sg.PopupGetFile(
-                    #     "Save parameters as",
-                    #     save_as=True,
-                    #     file_types=(("JSON files", "*.json"),)
-                    # )
                 if parameter_file_name:
                     src.io.saveJSON(
                         parameters,
