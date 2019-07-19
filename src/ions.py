@@ -311,7 +311,7 @@ def __determineAttributeTargets(
         axis=1
     ).reshape((-1, 1))
     distance = calibration_anchors[attribute] - average_attribute
-    if attribute in parameters["RELATIVE_ATTRIBUTES"]:
+    if "MZ" in attribute:
         distance *= 1000000 / average_attribute
     sample_correction = np.median(distance, axis=0)
     return sample_correction
@@ -336,7 +336,7 @@ def __calibrate(
             for attribute in ["MZ", "DT"]:
                 calibrated_attribute = "CALIBRATED_{}".format(attribute)
                 attribute_correction = calibration_dict[attribute][sample]
-                if attribute in parameters["RELATIVE_ATTRIBUTES"]:
+                if "MZ" in attribute:
                     ions[calibrated_attribute][sample_indices] *= (
                         1 - attribute_correction / 1000000
                     )
@@ -430,16 +430,13 @@ def estimateAlignmentParameters(
             # if attribute in parameters["RELATIVE_ATTRIBUTES"]:
             #     ptps *= 1000000 / np.min(estimation_anchors[attribute], axis=1)
             # ptp_limit = np.percentile(ptps, percentile_limit) * deviation_factor
-            if attribute in parameters["RELATIVE_ATTRIBUTES"]:
+            if "MZ" in attribute:
                 data *= 1000000 / np.min(estimation_anchors[attribute], axis=1).reshape(-1, 1)
             # ptp_limit = np.max(np.percentile(data, percentile_limit, axis=0) * deviation_factor)
             # attribute_std = np.std(np.abs(data), axis=0)
             # ptp_limit = np.max(attribute_std * deviation_factor)
             attribute_std = np.sort(np.std(data, axis=0))
-            if attribute == "CALIBRATED_RT":
-                ptp_limit = np.sqrt(attribute_std[-1]**2 + attribute_std[-2]**2)
-            else:
-                ptp_limit = np.sqrt(attribute_std[-1]**2 + attribute_std[-2]**2) * deviation_factor
+            ptp_limit = np.sqrt(attribute_std[-1]**2 + attribute_std[-2]**2) * deviation_factor
             # ptps = np.ptp(estimation_anchors[attribute], axis=1)
             # if attribute in parameters["RELATIVE_ATTRIBUTES"]:
             #     ptps *= 1000000 / np.min(estimation_anchors[attribute], axis=1)

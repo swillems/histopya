@@ -1,0 +1,16 @@
+{
+    "AMINO_ACID_FILE_NAME": "lib/defaults/default_amino_acids.json",
+    "ATOM_FILE_NAME": "lib/defaults/default_atoms.json",
+    "DATABASE_FILE_NAMES": [
+        null
+    ],
+    "DIGESTION_AMINO_ACIDS": "KR",
+    "FIXED_MODIFICATIONS": {
+        "C": 57.021464
+    },
+    "PTMS_FILE_NAME": "lib/defaults/default_ptms.json",
+    "TERMINI": {
+        "N": null,
+        "C": null
+    }
+}

@@ -620,5 +620,71 @@ def getProteinAccessions(
     )
 
 
+def createDatabase(database_parameters, file_name, log):
+    base_mass_dict = src.peptides.loadBaseMassDict(database_parameters, log)
+    proteins, total_protein_sequence, ptms, ptm_matrix = src.peptides.importProteinsAndPtms(
+        database_parameters,
+        log
+    )
+    peptides, peptide_index_matrix, digestion_matrix = src.peptides.digestProteins(
+        proteins,
+        total_protein_sequence,
+        ptm_matrix,
+        database_parameters,
+        log,
+    )
+    peptide_masses, fragments = src.peptides.calculateMasses(
+        peptides,
+        peptide_index_matrix,
+        base_mass_dict,
+        total_protein_sequence,
+        database_parameters,
+        log,
+    )
+    h5_dict = {
+        "parameters": (database_parameters, "json"),
+        "base_mass_dict": (base_mass_dict, "json"),
+        "proteins": (proteins, "npy"),
+        "total_protein_sequence": (total_protein_sequence, "str"),
+        "ptms": (ptms, "npy"),
+        "ptm_matrix": (ptm_matrix, "csr"),
+        "peptides": (peptides, "npy"),
+        "peptide_index_matrix": (peptide_index_matrix, "csr"),
+        "digestion_matrix": (digestion_matrix, "csr"),
+        "peptide_masses": (peptide_masses, "npy"),
+        "fragments": (fragments, "npy"),
+    }
+    src.io.saveH5Dict(file_name, h5_dict)
+
+
+def loadDatabase(file_name):
+    h5_dict = {
+        "parameters": "json",
+        "base_mass_dict": "json",
+        "proteins": "npy",
+        "total_protein_sequence": "str",
+        "ptms": "npy",
+        "ptm_matrix": "csr",
+        "peptides": "npy",
+        "peptide_index_matrix": "csr",
+        "digestion_matrix": "csr",
+        "peptide_masses": "npy",
+        "fragments": "npy",
+    }
+    result = src.io.loadH5Dict(file_name, h5_dict)
+    # parameters = result["parameters"]
+    # base_mass_dict = result["base_mass_dict"]
+    # proteins = result["proteins"]
+    # total_protein_sequence = result["total_protein_sequence"]
+    # ptms = result["ptms"]
+    # ptm_matrix = result["ptm_matrix"]
+    # peptides = result["peptides"]
+    # peptide_index_matrix = result["peptide_index_matrix"]
+    # digestion_matrix = result["digestion_matrix"]
+    # peptide_masses = result["peptide_masses"]
+    # fragments = result["fragments"]
+    return result
+
+
 if __name__ == '__main__':
     pass

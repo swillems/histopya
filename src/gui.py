@@ -522,17 +522,28 @@ class Dataset(object):
             self.percolated_fdrs = np.array([], dtype=np.int)
             self.percolated_anchors = np.array([], dtype=np.int)
             self.percolated_peptides = np.array([], dtype=np.int)
-        self.proteins, self.total_protein_sequence, self.ptms, self.ptm_matrix = src.peptides.importProteinsAndPtms(
-            self.parameters,
-            self.log
-        )
-        self.peptides, self.peptide_index_matrix, self.digestion_matrix = src.peptides.digestProteins(
-            self.proteins,
-            self.total_protein_sequence,
-            self.ptm_matrix,
-            self.parameters,
-            self.log
-        )
+        # self.proteins, self.total_protein_sequence, self.ptms, self.ptm_matrix = src.peptides.importProteinsAndPtms(
+        #     self.parameters,
+        #     self.log
+        # )
+        # self.peptides, self.peptide_index_matrix, self.digestion_matrix = src.peptides.digestProteins(
+        #     self.proteins,
+        #     self.total_protein_sequence,
+        #     self.ptm_matrix,
+        #     self.parameters,
+        #     self.log
+        # )
+        database = src.peptides.loadDatabase(parameters["DATABASE_FILE_NAME"])
+        # base_mass_dict = database["base_mass_dict"]
+        self.proteins = database["proteins"]
+        self.total_protein_sequence = database["total_protein_sequence"]
+        # ptms = database["ptms"]
+        # ptm_matrix = database["ptm_matrix"]
+        self.peptides = database["peptides"]
+        self.peptide_index_matrix = database["peptide_index_matrix"]
+        # digestion_matrix = database["digestion_matrix"]
+        # peptide_masses = database["peptide_masses"]
+        # fragments = database["fragments"]
         self.visible_nodes = np.array([], dtype=np.int)
         self.selected_nodes = np.array([], dtype=np.bool)
         self.node_labels = np.array([], dtype=np.bool)

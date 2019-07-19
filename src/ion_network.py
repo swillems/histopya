@@ -150,7 +150,8 @@ class IonNetwork(object):
                     aggregate_ions,
                     ion_alignment_parameters,
                     self.parameters,
-                    log
+                    log,
+                    save=False
                 )
                 anchor_alignment_parameters = src.aggregates.estimateAlignmentParameters(
                     ions,
@@ -196,26 +197,37 @@ class IonNetwork(object):
                 )
                 neighbors += neighbors.T
                 # src.aggregates.writeMgf(neighbors, aggregates, aggregate_ions, ions, parameters, log)
-                base_mass_dict = src.peptides.loadBaseMassDict(parameters, log)
-                proteins, total_protein_sequence, ptms, ptm_matrix = src.peptides.importProteinsAndPtms(
-                    parameters,
-                    log
-                )
-                peptides, peptide_index_matrix, digestion_matrix = src.peptides.digestProteins(
-                    proteins,
-                    total_protein_sequence,
-                    ptm_matrix,
-                    parameters,
-                    log,
-                )
-                peptide_masses, fragments = src.peptides.calculateMasses(
-                    peptides,
-                    peptide_index_matrix,
-                    base_mass_dict,
-                    total_protein_sequence,
-                    parameters,
-                    log,
-                )
+                # base_mass_dict = src.peptides.loadBaseMassDict(parameters, log)
+                # proteins, total_protein_sequence, ptms, ptm_matrix = src.peptides.importProteinsAndPtms(
+                #     parameters,
+                #     log
+                # )
+                # peptides, peptide_index_matrix, digestion_matrix = src.peptides.digestProteins(
+                #     proteins,
+                #     total_protein_sequence,
+                #     ptm_matrix,
+                #     parameters,
+                #     log,
+                # )
+                # peptide_masses, fragments = src.peptides.calculateMasses(
+                #     peptides,
+                #     peptide_index_matrix,
+                #     base_mass_dict,
+                #     total_protein_sequence,
+                #     parameters,
+                #     log,
+                # )
+                database = src.peptides.loadDatabase(parameters["DATABASE_FILE_NAME"])
+                base_mass_dict = database["base_mass_dict"]
+                proteins = database["proteins"]
+                total_protein_sequence = database["total_protein_sequence"]
+                # ptms = database["ptms"]
+                # ptm_matrix = database["ptm_matrix"]
+                peptides = database["peptides"]
+                peptide_index_matrix = database["peptide_index_matrix"]
+                # digestion_matrix = database["digestion_matrix"]
+                peptide_masses = database["peptide_masses"]
+                fragments = database["fragments"]
                 anchor_boundaries, fragment_peptide_indices, fragment_indices = src.aggregates.matchAnchorsToFragments(
                     fragments,
                     aggregates,

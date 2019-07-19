@@ -6,6 +6,7 @@ import src.parameters
 import src.io
 import PySimpleGUI as sg
 import subprocess
+import numbers
 
 
 def GUIWrapper():
@@ -130,7 +131,13 @@ def readParameters(parameter_file_name=None):
         except src.parameters.ParameterError:
             sg.PopupError("Not a valid parameter file")
             return
-    dict_layout = [
+    default_dict_layout = [
+        [
+            sg.Text(key, size=(50, 1)),
+            sg.InputText(value, key=key, enable_events=True)
+        ] for key, value in parameters.items() if value is None
+    ]
+    extended_dict_layout = [
         [
             sg.Text(key, size=(50, 1)),
             sg.InputText(value, key=key, enable_events=True)
@@ -138,39 +145,79 @@ def readParameters(parameter_file_name=None):
             isinstance(value, str)
         )
     ]
-    dict_layout += [
+    extended_dict_layout += [
         [
             sg.Text(key, size=(50, 1)),
             sg.Input(value, key=key, enable_events=True)
         ] for key, value in parameters.items() if (
-            isinstance(value, int)
+            isinstance(value, numbers.Number)
         )
     ]
     buttons = [
         sg.Button('Save as'),
-        sg.Button('Cancel')
+        sg.Button('Cancel'),
+        sg.Button('Show more options'),
+        sg.Button('Hide more options')
     ]
     if parameter_file_name:
         buttons = [sg.Button('Save')] + buttons
-    dict_layout += [buttons]
-    c = sg.Column(
-        dict_layout,
+    # button_dict_layout = [buttons]
+    default_window = sg.Column(
+        default_dict_layout,
         scrollable=True,
         vertical_scroll_only=True,
-        # size=(700,300)
+        # size=(700, 100)
     )
+    extended_window = sg.Column(
+        extended_dict_layout,
+        visible=parameter_file_name is not None,
+        scrollable=True,
+        vertical_scroll_only=True,
+        key="EXTENDED_OPTIONS",
+        size=(700, 300)
+    )
+    # window = sg.Window('Window Title', resizable=True).Layout(layout).Finalize()
     window = sg.Window(
         'Read parameters',
-        size=(800, 800)
+        # size=(800, 500),
+        resizable=True
     ).Layout(
         [
-            [c],
-        ]
-    )
+            *default_dict_layout,
+            # [default_window],
+            buttons,
+            [extended_window],
+        ],
+    ).Finalize()
+    # c = sg.Column(
+    #     [
+    #         [default_window],
+    #         [extended_window],
+    #         [button_dict_layout]
+    #     ],
+    #     scrollable=True,
+    #     vertical_scroll_only=True,
+    #     # size=(700,300)
+    # )
+    # window = sg.Window(
+    #     'Read parameters',
+    #     size=(800, 800)
+    # ).Layout(
+    #     [
+    #         [c],
+    #     ]
+    # )
     while True:
+        # window.Size = window.Size
+        # window.ReadNonBlocking()
         event, values = window.Read()
         if (event is None) or (event == "Cancel"):
             break
+        if event == "Show more options":
+            window.Element('EXTENDED_OPTIONS').Update(visible=True)
+            # extended_window.visible = not extended_window.visible
+        if event == "Hide more options":
+            window.Element('EXTENDED_OPTIONS').Update(visible=False)
         if (event == "Save as") or (event == "Save"):
             for key, value in values.items():
                 if key in parameters:
@@ -178,7 +225,10 @@ def readParameters(parameter_file_name=None):
                         parameters[key] = value
                     else:
                         try:
-                            cast_value = type(parameters[key])(value)
+                            if isinstance(parameters[key], bool):
+                                cast_value = type(parameters[key])(int(value))
+                            else:
+                                cast_value = type(parameters[key])(value)
                         except ValueError:
                             sg.PopupError("Wrong format for {}".format(value))
                             break
@@ -196,6 +246,9 @@ def readParameters(parameter_file_name=None):
                         parameter_file_name,
                     )
                     break
+        window.Refresh()
+        window.Refresh()
+        window.Size = window.Size
     window.Close()
     return parameter_file_name
 

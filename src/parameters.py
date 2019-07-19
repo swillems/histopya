@@ -3,15 +3,13 @@
 
 import os
 import re
-import traceback
-import sys
 import src.io
 import multiprocessing as mp
 import scipy.stats
 from scipy.special import binom as binom
 
 
-DEFAULT_PARAMETERS_FILE_NAME = "lib/defaults/default_parameters.json"
+DEFAULT_PARAMETERS_FILE_NAME = "lib/defaults/default_parameters_hdf5.json"
 AUTO_COMPLETE_PATTERN = "(\[.*\])"
 
 
@@ -172,17 +170,17 @@ def __parseMultiprocessingParameters(parameters):
 
 
 def __parseSamples(parameters):
-    if isinstance(parameters["APEX_FILE_NAMES"], str):
+    if len(parameters["APEX_FILE_NAMES"]) == 0:
         apex_file_names = []
-        for file_name in sorted(os.listdir(parameters["APEX_FILE_NAMES"])):
+        for file_name in sorted(os.listdir(parameters["APEX_PATH"])):
             if file_name.endswith(".csv"):
                 full_file_name = os.path.join(
-                    parameters["APEX_FILE_NAMES"],
+                    parameters["APEX_PATH"],
                     file_name
                 )
                 apex_file_names.append(full_file_name)
         parameters["APEX_FILE_NAMES"] = apex_file_names
-    if parameters["SAMPLE_COUNT"] is None:
+    if parameters["SAMPLE_COUNT"] <= 0:
         parameters["SAMPLE_COUNT"] = len(parameters["APEX_FILE_NAMES"])
     if isinstance(parameters["MINIMUM_OVERLAP"], int):
         neighbor_threshold = parameters["NEIGHBOR_THRESHOLD"]
@@ -246,6 +244,11 @@ def importParameters(input_file_name):
             input_file_name
         )
         __createPaths(parameters)
+        src.io.saveJSON(
+            parameters,
+            "FULL_PARAMETERS_FILE_NAME",
+            parameters
+        )
     except ParameterError as e:
         raise e
     return parameters

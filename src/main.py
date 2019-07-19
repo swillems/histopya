@@ -578,3 +578,9 @@ if __name__ == "__main__":
 
 
 # for i in {0..9}; do awk '(($4 > 50)&& ($4 < 55)) || NR==1' data/ecoli_sonar/apex/28Oct2016_06"$i"_Apex3DIons.csv > data/test_sonar/apex/sample_"$i".csv; done
+
+# for i in {1..2}; do awk '(($4 > 90)&& ($4 < 99)) || NR==1' data/lfq_swim_190327/apex/LFQnano_SWIMDIAvsUDMSE_SynaptG2Si_SWIMDIA_Condition_A_0"$i"_Apex3DIons.csv > data/test_lfq/apex/sample_A_"$i".csv; done
+#
+# for i in {1..2}; do awk '(($4 > 90)&& ($4 < 99)) || NR==1' data/lfq_swim_190327/apex/LFQnano_SWIMDIAvsUDMSE_SynaptG2Si_SWIMDIA_Condition_B_0"$i"_Apex3DIons.csv > data/test_lfq/apex/sample_B_"$i".csv; done
+#
+# for i in {1..1}; do awk '(($4 > 90)&& ($4 < 99)) || NR==1' data/lfq_swim_190327/apex/LFQnano_SWIMDIAvsUDMSE_SynaptG2Si_SWIMDIA_QC_0"$i"_Apex3DIons.csv > data/test_lfq/apex/sample_QC_"$i".csv; done

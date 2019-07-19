@@ -247,7 +247,7 @@ def estimateAlignmentParameters(
             #     ptps *= 1000000 / np.min(matched_isotopes[attribute], axis=1)
             # ptp_limit = list(np.percentile(ptps, percentile_limit, axis=0) * deviation_factor)
             ptps = np.diff(matched_isotopes[attribute], axis=1).squeeze()
-            if attribute in parameters["RELATIVE_ATTRIBUTES"]:
+            if "MZ" in attribute:
                 ptps *= 1000000 / np.min(matched_isotopes[attribute], axis=1)
             attribute_std = np.std(ptps, axis=0)
             ptp_limit = list(attribute_std * deviation_factor)

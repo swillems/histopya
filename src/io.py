@@ -11,6 +11,7 @@ import pandas as pd
 import csv
 import os
 from contextlib import contextmanager
+import h5py
 import matplotlib
 matplotlib.use("Agg", warn=False)
 import seaborn as sns
@@ -49,7 +50,7 @@ def saveMatrix(matrix, file_name, parameters, log=None):
     scipy.sparse.save_npz(parameters[file_name], matrix)
 
 
-def loadJSON(file_name, parameters, log=None):
+def loadJSON(file_name, parameters=None, log=None):
     ''' Loads a JSON dict from the corresponding file name in parameters'''
     if log is not None:
         log.printIO(file_name, "Loading")
@@ -93,6 +94,71 @@ def loadArrayFromCsv(file_name, parameters, log=None, use_cols=None):
             usecols=use_cols
         ).values[:, np.argsort(np.argsort(use_cols))]
     return array
+
+
+def saveH5Dict(file_name, h5_dict):
+    with h5py.File(file_name, "w") as f:
+        dt = h5py.special_dtype(vlen=str)
+        for key, (value, value_type) in h5_dict.items():
+            # print(key, value_type, type(value))
+            if value_type == "npy":
+                try:
+                    tmp = f.create_dataset(key, data=value, compression="lzf")
+                except TypeError:
+                    g = f.create_group(key)
+                    g.attrs['type'] = "npy"
+                    g.attrs['shape'] = (len(value), len(value.dtype))
+                    for val_id, (val_subtype, tmp) in value.dtype.fields.items():
+                        if val_subtype == np.dtype(object):
+                            tmp = g.create_dataset(val_id, data=value[val_id], dtype=dt)
+                        else:
+                            tmp = g.create_dataset(val_id, data=value[val_id], compression="lzf")
+            elif value_type == "csr":
+                g = f.create_group(key)
+                tmp = g.create_dataset('data', data=value.data, compression="lzf")
+                tmp = g.create_dataset('indptr', data=value.indptr, compression="lzf")
+                tmp = g.create_dataset('indices', data=value.indices, compression="lzf")
+                g.attrs['shape'] = value.shape
+                g.attrs['type'] = "csr"
+            elif value_type == "json":
+                tmp = f.create_dataset(key, data=json.dumps(value))
+            elif value_type == "str":
+                tmp = f.create_dataset(key, data=value)
+
+
+def loadH5Dict(file_name, h5_dict):
+    with h5py.File(file_name, "r") as f:
+        r = {}
+        for key, key_type in h5_dict.items():
+            if key_type == "npy":
+                if isinstance(f[key], h5py.Dataset):
+                    r[key] = f[key][...]
+                else:
+                    g = f[key]
+                    shape = g.attrs['shape']
+                    elements = {k: g[k][...] for k in list(g)}
+                    d = []
+                    for i, e in elements.items():
+                        d += [(i, e.dtype.descr[0][1])]
+                    a = np.empty(shape[0], dtype=np.dtype(d))
+                    for i, e in elements.items():
+                        a[i] = e
+                    r[key] = a
+            elif key_type == "csr":
+                g = f[key]
+                r[key] = scipy.sparse.csr_matrix(
+                    (
+                        g['data'][:],
+                        g['indices'][:],
+                        g['indptr'][:]
+                    ),
+                    shape=g.attrs['shape']
+                )
+            elif key_type == "json":
+                r[key] = json.loads(str(f[key][...]))
+            elif key_type == "str":
+                r[key] = str(f[key][...])
+    return r
 
 
 def saveListOfListsToCsv(

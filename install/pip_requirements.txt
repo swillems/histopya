@@ -6,3 +6,6 @@ scipy==1.1.0
 seaborn==0.8.1
 sklearn==0.0
 pyteomics==4.1.1
+h5py==2.9.0
+PySimpleGUI==4.0.0
+

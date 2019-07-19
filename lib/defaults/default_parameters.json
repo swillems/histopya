@@ -115,7 +115,7 @@
     ],
     "REORDERED_IONS_FILE_NAME": "[OUTPUT_PATH]reordered_ions.npy",
     "REQUIRE_PHYSICAL_PRECURSOR": false,
-    "SAMPLE_COUNT": null,
+    "SAMPLE_COUNT": 0,
     "SAVE_UNFILTERED_IONS": false,
     "SIGNAL_COUNT_THRESHOLD": 2,
     "SPECTRA_FILE_NAME": "[OUTPUT_PATH]spectra.npy",
