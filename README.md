@@ -1,33 +1,90 @@
-# HistoPyA
-
+# Ion-networks
 
 ## Overview
 
-HistoPyA was developed to simultaneously analyse data from multiple proteomic samples of similar origin acquired on an LC-IMS-Q-TOF with equal acquisition parameters, preferably in SWIM-DIA mode.
+Ion-networks are a complete yet sparse representation of an MS experiment containing multiple samples. It was originally developed for LC-IMS-MS DIA data, but the IMS dimension can easily be replaced by e.g. a scanning quadrupole coordinate, since precursor m/z and drift time are correlated. The original paper describing ion-networks is available in the docs folder.
 
-It takes fully peackpicked data, i.e. ion sticks with 4 coordinates (MZ, RT, DT, Intensity), in *.csv format as input and outputs Peptide-to-Ion-Matches in *.csv format (optionally processed by Percolator).
+The current implementation allows to
 
-The original paper providing more detail is available in the docs folder.
-
+1. Create ion-networks
+2. Annotate ion-networks (proteomics only)
+3. Browse ion-networks
 
 ## Installation
 
-### Prerequisites
+The complete software suite was developed for Linux. As Windows 10 nowadays comes with a Linux subsystem (WSL), this platform is compatible as well through a slightly modified installation. All source code was written in Python 3.6 and tested on Ubuntu 18.04 and CentOS 7.6.1810.
 
-HistoPyA was developed on a Linux Centos 6 distribution, but should work on any Linux flavor with python3.6 installed.
+NOTE: The installation includes a full demo [proteomics benchmark dataset](URL_TODO) of 3GB, some standard proteomic databases, and [percolator](https://github.com/percolator/percolator) from external sources.
 
-#### Windows quirks
+### Linux
 
-For windows users, we advise to install a Linux shell (Ubuntu 18.04 was tested for compatability) on Windows 10 by following [these steps](https://docs.microsoft.com/en-us/windows/wsl/install-win10). Make sure you don't forget to [initialize linux at first usage](https://docs.microsoft.com/en-us/windows/wsl/install-win10#complete-initialization-of-your-distro) (note that this might take a while).
-
-Furthermore make sure python3.6 is callable directly and has the option to install a virtual environment by executing the commands (you might have to drop the .6 if 3.6 is generic python3):
+First, run the following commands to install all dependancies on e.g. Ubuntu 18.04 (skip this if already satisfied):
 
 ```
-sudo apt install python3.6
-sudo apt install python3.6-venv
-sudo apt install python3.6-tk
+sudo apt update && sudo apt upgrade && sudo apt install python3.6 python3.6-venv python3.6-tk python3 python3-venv python3-tk libgomp1
+wget --output-document percolator/percolator_3_02_01_ubuntu.tar.gz https://github.com/percolator/percolator/releases/download/rel-3-02-01/ubuntu64.tar.gz
+tar xzvf percolator/percolator_3_02_01_ubuntu.tar.gz -C install
+sudo dpkg -i percolator/elude-v3-02-linux-amd64.deb
+sudo dpkg -i percolator/percolator-v3-02-linux-amd64.deb
 ```
 
+Finally, install the source for for ion-networks itself:
+
+```
+git clone https://github.com/swillems/histopya
+cd histopya/install
+bash install/install.sh
+```
+
+#### Windows 10
+
+Windows users need to install a WSL for Ubuntu 18.04 by following [these steps](https://docs.microsoft.com/en-us/windows/wsl/install-win10).
+
+After the WSL has been installed and a user account has been created, copy-paste the following commands (takes about an hour and some password confirmations. When prompted, click yes on the "auto-reboot" screen, as this is only a WSL reboot and not a Windows reboot):
+
+```
+sudo apt update && sudo apt upgrade && sudo apt install python3.6 python3.6-venv python3.6-tk python3 python3-venv python3-tk libgomp1
+wget --output-document percolator/percolator_3_02_01_ubuntu.tar.gz https://github.com/percolator/percolator/releases/download/rel-3-02-01/ubuntu64.tar.gz
+tar xzvf percolator/percolator_3_02_01_ubuntu.tar.gz -C install
+sudo dpkg -i percolator/elude-v3-02-linux-amd64.deb
+sudo dpkg -i percolator/percolator-v3-02-linux-amd64.deb
+git clone https://github.com/swillems/histopya
+cd histopya/install
+bash install/install.sh
+chmod -R 777 .
+```
+
+Next, download and install [MobaXterm v11.1](https://mobaxterm.mobatek.net/download-home-edition.html). Open it and press the "session" button on the top left. Select the rightmost tab "WSL" and set the Linux distribution to Ubuntu in the "Basic WSL settings" tab. Click the "Advanced WSL settings" tab and copy the following text to the "Execute the following commands at startup" window:
+
+```
+cd histopya; bash run_gui.sh
+```
+
+Finally, click the "Bookmark settings" tab and change the "Session name" to e.g. "ion_network_gui". Click the "Ceate a desktop shortcut to this session" button and select both options "Hide terminal on startup" and "Close MobaXterm on exit" before pressing "OK" in this popup. Confirm the session settings with "OK" and close MobaXterm.
+
+## Input data
+
+To create an ion-network, nothing more is needed than a single folder containing a csv per experiment with all its peak picked fragment ions. Herein, each ion need to have the following  attributes:
+
+1. m/z
+2. DT
+3. RT
+4. intensity
+5. m/z error (ppm)
+6. DT error
+7. RT error
+
+In case of Waters data (e.g. Synapt G2-Si or Vion), peak picked data is most easily obtainable by their Apex3D software as provided in MassLynx or in Progenesis QI (Nonlinear Dynamics) with a command similar to:
+
+```
+Apex3D64.exe -pRawDirName sample.raw -outputDirName peak_picked_sample_folder -lockMassZ2 785.8426 -lockmassToleranceAMU 0.25 -bCSVOutput 1 -writeFuncCsvFiles 0 -leThresholdCounts 1 -heThresholdCounts 1 -apexTrackSNRThreshold 1 -bEnableCentroids 0
+```
+
+Alternatively, [IMTBX and Grppr](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5826643/#SD1) can be used for peak picking but this has not been tested for compatibility yet.
+
+In case of proteomics data, a database is needed for annotation. Human, Yeast, Ecoli and benchmark databases are included in the ```lib/databases/``` folder. Custum databases can be created with some simple coding, but currently no GUI has been provided yet.
+
+#### Other
 Finally, note that copy pasting of files to the (hidden) Linux folder similar to:
 
 ```
@@ -40,25 +97,6 @@ removes all permissions. These can be manually reset by a
 chmod -R 777 .
 ```
 
-Tkinter has no agg on windows? Go through mobaxterm. Make a WSL bookmark with "Run at startup" set to "cd histopya; bash run_gui.sh" and copy paste the "windows_shortcut.cmd" to your windows to run histopya GUI with a single double-click.
-
-### Download and install
-A complete installation (including a 300 mb test data set) is done with the following terminal commands, executed from wherever you want to install histopya:
-
-```
-git clone https://github.com/swillems/histopya
-cd histopya
-bash install/install.sh
-# In case python3.6 is not run by calling "python3.6",
-# pass the full path as argument, e.g.:
-# bash install/install.sh /usr/bin/python3.6
-```
-
-Percolator can improve results, but is not essential to run histopya. If percolator is installed, but not run by calling "percolator", update the file "lib/defaults/default_parameters.json" so line 65 containing "PERCOLATOR_LOCATION" states the full path, e.g.
-
-```
-"PERCOLATOR_LOCATION": "/usr/local/bin/percolator",
-```
 
 ### Test installation
 

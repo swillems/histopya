@@ -197,7 +197,7 @@ def runPercolator(parameters, log=None):
         # "-V", "score", # Can become negative if mod_score is also included!
         "-P",
         "DECOY_",
-        "-x"
+        # "-x"
     ]
     if parameters["USE_RT_IN_PERCOLATOR"]:
         percolator_params += [
