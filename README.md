@@ -22,8 +22,9 @@ First, run the following commands to install all dependancies on e.g. Ubuntu 18.
 
 ```
 sudo apt update && sudo apt upgrade && sudo apt install python3.6 python3.6-venv python3.6-tk python3 python3-venv python3-tk libgomp1
+mkdir percolator
 wget --output-document percolator/percolator_3_02_01_ubuntu.tar.gz https://github.com/percolator/percolator/releases/download/rel-3-02-01/ubuntu64.tar.gz
-tar xzvf percolator/percolator_3_02_01_ubuntu.tar.gz -C install
+tar xzvf percolator/percolator_3_02_01_ubuntu.tar.gz -C percolator
 sudo dpkg -i percolator/elude-v3-02-linux-amd64.deb
 sudo dpkg -i percolator/percolator-v3-02-linux-amd64.deb
 ```
@@ -44,8 +45,9 @@ After the WSL has been installed and a user account has been created, copy-paste
 
 ```
 sudo apt update && sudo apt upgrade && sudo apt install python3.6 python3.6-venv python3.6-tk python3 python3-venv python3-tk libgomp1
+mkdir percolator
 wget --output-document percolator/percolator_3_02_01_ubuntu.tar.gz https://github.com/percolator/percolator/releases/download/rel-3-02-01/ubuntu64.tar.gz
-tar xzvf percolator/percolator_3_02_01_ubuntu.tar.gz -C install
+tar xzvf percolator/percolator_3_02_01_ubuntu.tar.gz -C percolator
 sudo dpkg -i percolator/elude-v3-02-linux-amd64.deb
 sudo dpkg -i percolator/percolator-v3-02-linux-amd64.deb
 git clone https://github.com/swillems/histopya

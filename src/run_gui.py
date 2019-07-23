@@ -131,11 +131,40 @@ def readParameters(parameter_file_name=None):
         except src.parameters.ParameterError:
             sg.PopupError("Not a valid parameter file")
             return
+    must_set = [
+        "APEX_PATH",
+        "OUTPUT_PATH",
+        "DATABASE_FILE_NAME",
+    ]
+    apex_path = parameters["APEX_PATH"]
+    output_path = parameters["OUTPUT_PATH"]
+    database_file_name = parameters["DATABASE_FILE_NAME"]
     default_dict_layout = [
+        [
+            sg.Text("Apex folder"),
+            sg.Input(apex_path, key="APEX_PATH"),
+            sg.FolderBrowse(),
+        ],
+        [
+            sg.Text("Output folder"),
+            sg.Input(output_path, key="OUTPUT_PATH"),
+            sg.FolderBrowse(),
+        ],
+        [
+            sg.Text("Database file"),
+            sg.Input(database_file_name, key="DATABASE_FILE_NAME"),
+            sg.FileBrowse(),
+        ],
+    ]
+    default_dict_layout += [
         [
             sg.Text(key, size=(50, 1)),
             sg.InputText(value, key=key, enable_events=True)
-        ] for key, value in parameters.items() if value is None
+        ] for key, value in parameters.items() if (
+            value is None
+        ) and not (
+            key in must_set
+        )
     ]
     extended_dict_layout = [
         [
@@ -143,6 +172,8 @@ def readParameters(parameter_file_name=None):
             sg.InputText(value, key=key, enable_events=True)
         ] for key, value in parameters.items() if (
             isinstance(value, str)
+        ) and not (
+            key in must_set
         )
     ]
     extended_dict_layout += [
@@ -151,6 +182,8 @@ def readParameters(parameter_file_name=None):
             sg.Input(value, key=key, enable_events=True)
         ] for key, value in parameters.items() if (
             isinstance(value, numbers.Number)
+        ) and not (
+            key in must_set
         )
     ]
     buttons = [

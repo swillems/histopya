@@ -154,6 +154,9 @@ def __autoCompleteSingleParameter(parameters, parameter, value, parent=None):
 def __createPaths(parameters):
     for parameter, value in parameters.items():
         if parameter.endswith("_PATH") and (value is not None):
+            if not value.endswith("/"):
+                value = value + "/"
+                parameters[parameter] = value
             if not os.path.exists(value):
                 os.makedirs(value)
 
