@@ -10,6 +10,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 cd $DIR
 cd ..
 mkdir data
+mkdir projects
 echo "Setting directory to" $(pwd)
 
 if [ -z $PYTHON_COMMAND ] ; then

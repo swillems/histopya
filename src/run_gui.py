@@ -143,17 +143,17 @@ def readParameters(parameter_file_name=None):
         [
             sg.Text("Apex folder"),
             sg.Input(apex_path, key="APEX_PATH"),
-            sg.FolderBrowse(),
+            sg.FolderBrowse(initial_folder="data"),
         ],
         [
             sg.Text("Output folder"),
             sg.Input(output_path, key="OUTPUT_PATH"),
-            sg.FolderBrowse(),
+            sg.FolderBrowse(initial_folder="projects"),
         ],
         [
             sg.Text("Database file"),
             sg.Input(database_file_name, key="DATABASE_FILE_NAME"),
-            sg.FileBrowse(),
+            sg.FileBrowse(initial_folder="lib/databases"),
         ],
     ]
     default_dict_layout += [
