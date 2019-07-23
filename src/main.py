@@ -586,4 +586,15 @@ if __name__ == "__main__":
 # for i in {1..1}; do awk '(($4 > 90)&& ($4 < 99)) || NR==1' data/lfq_swim_190327/apex/LFQnano_SWIMDIAvsUDMSE_SynaptG2Si_SWIMDIA_QC_0"$i"_Apex3DIons.csv > data/test_lfq/apex/sample_QC_"$i".csv; done
 #
 #
-# sftp://sander@locutus.ugent.be/home/sander/proteomics/histopya/data/tenzer/apex/S130423_0"$i"_Apex3DIons.csv
+
+# awk '(($4 > 95)&& ($4 < 99)) || NR==1' data/tenzer/apex/S130423_05_Apex3DIons.csv > data/test_lfq/apex2/sample_A_05.csv
+# awk '(($4 > 94)&& ($4 < 98)) || NR==1' data/tenzer/apex/S130423_07_Apex3DIons.csv > data/test_lfq/apex2/sample_A_07.csv
+# awk '(($4 > 95.5)&& ($4 < 99.5)) || NR==1' data/tenzer/apex/S130423_09_Apex3DIons.csv > data/test_lfq/apex2/sample_A_09.csv
+# awk '(($4 > 95.5)&& ($4 < 99.5)) || NR==1' data/tenzer/apex/S130423_11_Apex3DIons.csv > data/test_lfq/apex2/sample_A_11.csv
+# awk '(($4 > 95.5)&& ($4 < 99.5)) || NR==1' data/tenzer/apex/S130423_13_Apex3DIons.csv > data/test_lfq/apex2/sample_A_13.csv
+#
+# awk '(($4 > 95.5)&& ($4 < 99.5)) || NR==1' data/tenzer/apex/S130423_06_Apex3DIons.csv > data/test_lfq/apex2/sample_B_06.csv
+# awk '(($4 > 95.5)&& ($4 < 99.5)) || NR==1' data/tenzer/apex/S130423_08_Apex3DIons.csv > data/test_lfq/apex2/sample_B_08.csv
+# awk '(($4 > 95.5)&& ($4 < 99.5)) || NR==1' data/tenzer/apex/S130423_10_Apex3DIons.csv > data/test_lfq/apex2/sample_B_10.csv
+# awk '(($4 > 95.5)&& ($4 < 99.5)) || NR==1' data/tenzer/apex/S130423_12_Apex3DIons.csv > data/test_lfq/apex2/sample_B_12.csv
+# awk '(($4 > 95.5)&& ($4 < 99.5)) || NR==1' data/tenzer/apex/S130423_14_Apex3DIons.csv > data/test_lfq/apex2/sample_B_14.csv
