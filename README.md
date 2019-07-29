@@ -65,7 +65,7 @@ NOTE: The WSL is a hidden subfolder located at e.g. ```C:\Users\sanwill\AppData\
 To test if the installation was indeed successful, run the following command to fully analyze the test dataset, containing an excerpt from [PXD001240](http://proteomecentral.proteomexchange.org/cgi/GetDataset?ID=PXD001240) with 10 minutes from the 5 A samples (65% human, 15% yeast, 20% ecoli), and 5 B samples (65% human, 30% yeast, 5% ecoli).
 
 ```
-bash run_cmd.sh -i data/test_lfq/parameters.json -a ABC
+bash run_cmd.sh -i install/test_lfq_parameters.json -a ABC
 ```
 
 ## Input data
@@ -109,7 +109,7 @@ With this parameter file, three different actions can (simultaneously) be taken 
 An ion-network can be created with the following command:
 
 ```
-bash run_cmd.sh -i data/test_lfq/parameters.json -a C
+bash run_cmd.sh -i install/test_lfq_parameters.json -a C
 ```
 
 While the default parameters generally suffice, the following parameters can have a significant effect:
@@ -124,7 +124,7 @@ Currently, only proteomics data can be annotated with a database search approach
 To annotate an ion-network, use the following command:
 
 ```
-bash run_cmd.sh -i data/test_lfq/parameters.json -a A
+bash run_cmd.sh -i install/test_lfq_parameters.json -a A
 ```
 
 Significant parameters that can change annotation results include:
@@ -138,7 +138,7 @@ Significant parameters that can change annotation results include:
 An ion-network can be visualized with:
 
 ```
-bash run_cmd.sh -i data/test_lfq/parameters.json -a B
+bash run_cmd.sh -i install/test_lfq_parameters.json -a B
 ```
 
 Note that most ion-networks are quite vast and that it is not always wise to try and visualize everything. This is particularly true for the button *Show edges* and the slider *Minimum signal*, which generally should only be changed when zoomed in sufficiently.
