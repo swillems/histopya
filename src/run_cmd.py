@@ -12,14 +12,14 @@ def argumentParser():
     parser.add_argument(
         "-i",
         "--input_file_name",
-        help="Parameter file (*.json) or ion-network (*.hdf5)",
+        help="Parameter file (*.json)",
         required=True
     )
     parser.add_argument(
         "-a",
         "--actions_to_take",
         help="(A)nnotate, (B)rowse, and/or (C)reate ion-network",
-        default="CA",
+        # default="CA",
     )
     # parser.add_argument(
     #     "-e",

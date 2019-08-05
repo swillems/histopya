@@ -1493,6 +1493,16 @@ def __estimateMZFromDT(
             )
             predicted_mzs[z] = ransac.predict(dts.reshape(-1, 1)).flatten()
             y_pred = ransac.predict(x[~d].reshape(-1, 1)).flatten()
+            # try:
+            #     ransac.fit(
+            #         np.repeat(x[~d], m).reshape(-1, 1),
+            #         np.repeat(y[~d], m).reshape(-1, 1)
+            #     )
+            #     predicted_mzs[z] = ransac.predict(dts.reshape(-1, 1)).flatten()
+            #     y_pred = ransac.predict(x[~d].reshape(-1, 1)).flatten()
+            # except ValueError as e:
+            #     predicted_mzs[z] = dts
+            #     y_pred = y[~d]
             est = y[~d] - y_pred
             predicted_mzs_errors[z] = est
         std_errors = np.stack(
@@ -1517,3 +1527,155 @@ def __estimateMZFromDT(
 
 if __name__ == "__main__":
     pass
+
+
+
+def __writePercolatorFileWithoutPhysicalPrecursorWithPearsons(
+    anchors,
+    base_mass_dict,
+    anchor_peptide_match_counts,
+    fragments,
+    anchor_fragment_indices,
+    neighbors,
+    peptides,
+    proteins,
+    peptide_masses,
+    precursor_indices,
+    anchor_peptide_scores,
+    peptide_index_matrix,
+    total_protein_sequence,
+    pearson_correlations,
+    parameters,
+    log,
+):
+    with log.newSection("Creating percolator data"):
+        if not parameters["PSEUDO_ION_MOBILITY"]:
+            std_errors = __estimateMZFromDT(
+                anchor_peptide_scores,
+                anchors,
+                peptide_masses,
+                peptides,
+                precursor_indices,
+                parameters,
+                log,
+            )
+        data = []
+        header = [
+            "PIM_id",
+            "Label",
+            "ScanNr",
+            "rt",
+            "dm",
+            "ppm",
+            "reproducibility_count",
+            "neighbor_count",
+            "match_count",
+            "match_ratio",
+            "estimated_z",
+            "sigma_mass_distance",
+            # "mod_score",
+            "peptide_length",
+            "match_count_over_pep_len",
+            "score",
+            "alternatives",
+            "pearson1",
+            #"pearson2",
+            #"pearson3",
+            #"pearson4",
+            #"pearson5",
+            #"pearson6",
+            #"pearson7",
+            #"pearson8",
+            #"pearson9",
+            #"pearson10",
+            "Peptide",
+            "Proteins",
+        ]
+        selected_anchor_indices = np.repeat(
+            np.arange(anchor_peptide_match_counts.shape[0]),
+            np.diff(anchor_peptide_match_counts.indptr)
+        )
+        for index in np.argsort(anchor_peptide_scores.data)[::-1]:
+            anchor_index = selected_anchor_indices[index]
+            anchor = anchors[anchor_index]
+            anchor_mr = anchor["MZ"] - base_mass_dict["atoms"]["H+"]
+            fragment_index = anchor_fragment_indices[index][0]  # TODO multiple candidates?
+            if fragment_index > 0:
+                fragment = fragments[fragment_index]
+                anchor_dm = anchor_mr - fragment["Y_MR"]
+            else:
+                fragment = fragments[-fragment_index]
+                anchor_dm = anchor_mr - fragment["B_MR"]
+            anchor_ppm = anchor_dm / anchor_mr * 1000000
+            anchor_neighbors = neighbors.indices[
+                neighbors.indptr[anchor_index]: neighbors.indptr[anchor_index + 1]
+            ]
+            match_count = anchor_peptide_match_counts.data[index]
+            peptide_index = anchor_peptide_match_counts.indices[index]
+            peptide = peptides[peptide_index]
+            score = anchor_peptide_scores.data[index]
+            peptide_start_index = peptide_index_matrix.indices[
+                peptide_index_matrix.indptr[peptide_index]
+            ]
+            peptide_sequence = total_protein_sequence[
+                peptide_start_index: peptide_start_index + peptide["SIZE"]
+            ]
+            protein_index = peptide["PROTEIN"]
+            if protein_index != -1:
+                protein_string = proteins[protein_index]["ID"]
+            else:
+                protein_string = "Ambiguous"
+            alternatives = anchor_peptide_match_counts.indptr[anchor_index + 1] - anchor_peptide_match_counts.indptr[anchor_index]
+            if parameters["PSEUDO_ION_MOBILITY"]:
+                best_z = 0
+                mass_sigma = 0
+                mod_score = 0
+            else:
+                best_z = np.argmin(std_errors[:, index]) + 1
+                mass_sigma = std_errors[best_z - 1, index]
+                mod_score = score / (.5 + mass_sigma)
+            # if mass_sigma > 1:
+            #     continue
+            row = [
+                index,
+                -1 if peptide["DECOY"] else 1,
+                anchor_index,
+                anchor["RT"],
+                # mass_sigma, #anchor_dm,
+                anchor_dm,
+                anchor_ppm,
+                anchor["ION_COUNT"],
+                len(anchor_neighbors),
+                match_count,
+                match_count / len(anchor_neighbors),
+                # abs(6.5 - z1_ratio),
+                best_z,
+                # anchor_dm, #mass_sigma,
+                mass_sigma,
+                # mod_score,
+                len(peptide_sequence),
+                match_count / (len(peptide_sequence) * 2 - 2),
+                score,
+                alternatives,
+                pearson_correlations[index, best_z - 1, 0],
+                #pearson_correlations[index, best_z - 1, 1],
+                #pearson_correlations[index, best_z - 1, 2],
+                #pearson_correlations[index, best_z - 1, 3],
+                #pearson_correlations[index, best_z - 1, 4],
+                #pearson_correlations[index, best_z - 1, 5],
+                #pearson_correlations[index, best_z - 1, 6],
+                #pearson_correlations[index, best_z - 1, 7],
+                #pearson_correlations[index, best_z - 1, 8],
+                #pearson_correlations[index, best_z - 1, 9],
+                "-.{}.-".format(peptide_sequence),  # TODO proper flanking?
+                protein_string,
+            ]
+            data.append(row)
+        src.io.saveListOfListsToCsv(
+            data,
+            "PERCOLATOR_DATA_FILE_NAME",
+            parameters,
+            log,
+            header,
+            "\t"
+        )

@@ -24,14 +24,10 @@ fi
 
 echo "Creating python venv..."
 $PYTHON_COMMAND -m venv venv
-
-echo "Setting python venv path to HistoPyA..."
 pwd > venv/lib/python3.6/site-packages/paths.pth
 
-echo "Upgrading venv pip..."
-venv/bin/python -m pip install --upgrade pip
-
 echo "Installing python dependancies..."
+venv/bin/python -m pip install --upgrade pip
 venv/bin/python -m pip install -r install/pip_requirements.txt
 
 # TODO set download paths to proteomeXchange instead of dropbox

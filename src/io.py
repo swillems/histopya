@@ -378,6 +378,5 @@ def plotCalibrationResults(estimation_aggregates, parameters, log):
         tmp = plt.close()
 
 
-
 if __name__ == '__main__':
     pass

@@ -97,9 +97,7 @@ def browseIonNetwork(parameter_file_name):
 def executeScript(command, title):
     layout = [
         [sg.Output(size=(100, 30))],
-        # [sg.Button("Close")]
     ]
-    # print = sg.Print
     window = sg.Window(title, layout)
     window.ReadNonBlocking()
     print("Loading external script...")
@@ -112,6 +110,7 @@ def executeScript(command, title):
         print(line.decode().rstrip())
         window.ReadNonBlocking()
     print("Finished external script.")
+    print("Close this window to continue...")
     while True:
         (event, value) = window.Read()
         if (event is None) or (event == "Close"):

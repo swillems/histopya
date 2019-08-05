@@ -795,10 +795,25 @@ class Dataset(object):
             self.node_labels = np.array([""] * len(self.visible_nodes))
         if label_type == "m/z":
             self.node_labels = self.anchors["MZ"][self.visible_nodes]
+            self.node_labels = np.array(
+                [
+                    "{0:.2f}".format(s) for s in self.node_labels
+                ]
+            )
         if label_type == "rt":
             self.node_labels = self.anchors["RT"][self.visible_nodes]
+            self.node_labels = np.array(
+                [
+                    "{0:.2f}".format(s) for s in self.node_labels
+                ]
+            )
         if label_type == "dt":
             self.node_labels = self.anchors["DT"][self.visible_nodes]
+            self.node_labels = np.array(
+                [
+                    "{0:.2f}".format(s) for s in self.node_labels
+                ]
+            )
         if label_type == "Index":
             self.node_labels = self.visible_nodes
         if (label_type == "Peptide") or (label_type == "Protein"):

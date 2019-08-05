@@ -528,12 +528,12 @@ with log.newSection("Calculating consistent coeluton accuracy"):
 
 # Plotting edge accuracy
 with log.newSection("Plotting consitent coelution accuracy"):
-    e_ex, = plt.plot(eco1[2:], marker="o", linestyle="-", c="blue")
-    h_ex, = plt.plot(hum1[2:], marker="o", linestyle="-", c="red")
-    y_ex, = plt.plot(yea1[2:], marker="o", linestyle="-", c="green")
-    e_th, = plt.plot(eco2[2:], marker=".", linestyle=":", c="blue")
-    h_th, = plt.plot(hum2[2:], marker=".", linestyle=":", c="red")
-    y_th, = plt.plot(yea2[2:], marker=".", linestyle=":", c="green")
+    e_ex, = plt.plot(100 * eco1[2:], marker="o", linestyle="-", c="blue")
+    h_ex, = plt.plot(100 * hum1[2:], marker="o", linestyle="-", c="red")
+    y_ex, = plt.plot(100 * yea1[2:], marker="o", linestyle="-", c="green")
+    e_th, = plt.plot(100 * eco2[2:], marker=".", linestyle=":", c="blue")
+    h_th, = plt.plot(100 * hum2[2:], marker=".", linestyle=":", c="red")
+    y_th, = plt.plot(100 * yea2[2:], marker=".", linestyle=":", c="green")
     tmp = plt.legend(
         (
             e_ex,
@@ -611,7 +611,7 @@ with log.newSection("Plotting aggreggate annotation accuracy"):
             s=1
         )
     tmp = plt.legend(unique_organisms)
-    tmp = plt.xlabel("Log2((A + B) / 2)")
+    tmp = plt.xlabel("Log2(QC)")
     tmp = plt.ylabel("Log2(A / B)")
     # tmp = plt.show()
     tmp = plt.savefig(parameters["PLOTS_PATH"] + extension + "_lfq_annotation_accuracy.pdf", bbox_inches='tight')

@@ -688,3 +688,147 @@ def loadDatabase(file_name):
 
 if __name__ == '__main__':
     pass
+
+
+def includeMS2PIP(in_file_name, out_file_name):
+    in_file_name = "lib/databases/ecoli.hdf5"
+    # out_file_name = ".tmp/ecoli_peprec.csv"
+    database = src.peptides.loadDatabase(in_file_name)
+    # total_protein_sequence = database["total_protein_sequence"]
+    # peptides = database["peptides"]
+    # peptide_index_matrix = database["peptide_index_matrix"]
+    # fragments = database["fragments"]
+    database_parameters = database["parameters"]
+    base_mass_dict = database["base_mass_dict"]
+    proteins = database["proteins"]
+    total_protein_sequence = database["total_protein_sequence"]
+    ptms = database["ptms"]
+    ptm_matrix = database["ptm_matrix"]
+    peptides = database["peptides"]
+    peptide_index_matrix = database["peptide_index_matrix"]
+    digestion_matrix = database["digestion_matrix"]
+    peptide_masses = database["peptide_masses"]
+    fragments = database["fragments"]
+    # pep_seqs = src.peptides.getPeptideSequences(
+    #     [i for i, p in enumerate(peptides)],
+    #     peptides,
+    #     peptide_index_matrix,
+    #     total_protein_sequence
+    # )
+    # select_peptide_indices = [
+    #     i for i, p in enumerate(pep_seqs) if not (("X" in p) or ("U" in p)) and len(p) > 2
+    # ]
+    # pep_rows = [
+    #     [
+    #         "{}_{}".format(i, z),
+    #         "",
+    #         pep_seqs[i],
+    #         z
+    #     ] for i in select_peptide_indices for z in range(1, 4)
+    # ]
+    # src.io.saveListOfListsToCsv(
+    #     pep_rows,
+    #     "name",
+    #     {"name": out_file_name},
+    #     log=None,
+    #     header=["spec_id", "modifications", "peptide", "charge"],
+    #     delimiter=" "
+    # )
+    # venv/bin/python ms2pipC.py ../../histopya/.tmp/ecoli_peprec.csv -m 85
+    peprec_file_name = ".tmp/ecoli_peprec_HCD_predictions.csv"
+    peprec = pd.read_csv(peprec_file_name).values
+    indices, charges = list(zip(*[x.split("_") for x in peprec[:, 0]]))
+    indices = np.array(indices).astype(int)
+    charges = np.array(charges).astype(int)
+    is_b_type = peprec[:, 2] == "B"
+    new_fragments = np.empty(
+        len(fragments),
+        dtype=[
+            ("AMINO_ACID", "|S1"),
+            ("PEPTIDE", np.int),
+            ("B_MR", np.float),
+            ("Y_MR", np.float),
+            ("B_INDEX", np.int),
+            ("Y_INDEX", np.int),
+            ("B_Z1", np.float),
+            ("B_Z2", np.float),
+            ("B_Z3", np.float),
+            ("Y_Z1", np.float),
+            ("Y_Z2", np.float),
+            ("Y_Z3", np.float),
+        ]
+    )
+    new_fragments["AMINO_ACID"] = fragments["AMINO_ACID"]
+    new_fragments["PEPTIDE"] = fragments["PEPTIDE"]
+    new_fragments["B_MR"] = fragments["B_MR"]
+    new_fragments["Y_MR"] = fragments["Y_MR"]
+    new_fragments["B_INDEX"] = fragments["B_INDEX"]
+    new_fragments["Y_INDEX"] = fragments["Y_INDEX"]
+    max_index = np.max(
+        [
+            np.max(peprec[:, 3]),
+            np.max(new_fragments["B_INDEX"]),
+            np.max(new_fragments["Y_INDEX"])
+        ]
+    ) + 1
+    fragments_b_indices = scipy.sparse.csr_matrix(
+        (
+            np.arange(len(new_fragments)) + 1,
+            (
+                new_fragments["PEPTIDE"],
+                new_fragments["B_INDEX"],
+            )
+        ),
+        shape=(len(peptides), max_index)
+    )
+    fragments_b_indices.sort_indices()
+    fragments_y_indices = scipy.sparse.csr_matrix(
+        (
+            np.arange(len(new_fragments)) + 1,
+            (
+                new_fragments["PEPTIDE"],
+                new_fragments["Y_INDEX"],
+            )
+        ),
+        shape=(len(peptides), max_index)
+    )
+    fragments_y_indices.sort_indices()
+    for col, z, is_b, fragment_indices in (
+        ("Y_Z1", 1, ~is_b_type, fragments_y_indices),
+        ("Y_Z2", 2, ~is_b_type, fragments_y_indices),
+        ("Y_Z3", 3, ~is_b_type, fragments_y_indices),
+        ("B_Z1", 1, is_b_type, fragments_b_indices),
+        ("B_Z2", 2, is_b_type, fragments_b_indices),
+        ("B_Z3", 3, is_b_type, fragments_b_indices),
+    ):
+        preds = np.zeros(len(new_fragments))
+        selection = np.flatnonzero(is_b & (charges == z))
+        peprec_indices = scipy.sparse.csr_matrix(
+            (
+                selection + 1,
+                (
+                    indices[selection],
+                    peprec[selection, 3],
+                )
+            ),
+            shape=(len(peptides), max_index)
+        ).multiply(fragment_indices.astype(bool))
+        peprec_indices.sort_indices()
+        fragment_indices = fragment_indices.multiply(peprec_indices.astype(bool))
+        preds[fragment_indices.data - 1] = peprec[peprec_indices.data - 1, -1]
+        new_fragments[col] = preds
+    # return new_fragments
+    h5_dict = {
+        "parameters": (database_parameters, "json"),
+        "base_mass_dict": (base_mass_dict, "json"),
+        "proteins": (proteins, "npy"),
+        "total_protein_sequence": (total_protein_sequence, "str"),
+        "ptms": (ptms, "npy"),
+        "ptm_matrix": (ptm_matrix, "csr"),
+        "peptides": (peptides, "npy"),
+        "peptide_index_matrix": (peptide_index_matrix, "csr"),
+        "digestion_matrix": (digestion_matrix, "csr"),
+        "peptide_masses": (peptide_masses, "npy"),
+        "fragments": (new_fragments, "npy"),
+    }
+    src.io.saveH5Dict("lib/databases/ecoli_ms2pip.hdf5", h5_dict)
