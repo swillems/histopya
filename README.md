@@ -2,7 +2,7 @@
 
 ## Overview
 
-Ion-networks are a complete yet sparse representation of an MS experiment containing multiple samples. It was originally developed for LC-IMS-MS DIA data, but the IMS dimension can easily be replaced by e.g. a scanning quadrupole coordinate, since precursor m/z and drift time are correlated. The original paper describing ion-networks is available in the docs folder.
+Ion-networks are a complete yet sparse representation of an MS experiment containing multiple samples. It was originally developed for LC-IMS-MS DIA data, but the IMS dimension can easily be replaced by e.g. a scanning quadrupole coordinate, since precursor m/z and drift time are correlated. The original paper describing ion-networks is available in [bioRxiv](TODO).
 
 The current implementation allows to
 
@@ -14,10 +14,10 @@ The current implementation allows to
 
 The complete software suite was developed for Linux. As Windows 10 nowadays comes with a Linux subsystem (WSL), this platform is compatible as well through a slightly modified installation. All source code was written in Python 3.6 and tested on Ubuntu 18.04 and CentOS 7.6.1810. The installation includes the following:
 
-* The full software suite to create/annotate/browse ion-networks.
+* The full software suite to Create/Annotate/Browse ion-networks.
 * Some standard indexed proteomic databases (1GB).
 * [Percolator and Elude](https://github.com/percolator/percolator).
-* A full demo proteomics benchmark dataset (3GB), containing an excerpt from [PXD001240](http://proteomecentral.proteomexchange.org/cgi/GetDataset?ID=PXD001240) with 10 minutes from 5 samples in condition A (65% human, 15% yeast, 20% ecoli), and 5 samples in condition B (65% human, 30% yeast, 5% ecoli). This test dataset allows to recreate the main figure of our [paper](https://github.com/swillems/histopya/blob/master/docs/ion_networks.paper), although some minor difference are present as the auto-calibration and Percolator can only use the included data instead of the complete experiment.
+* A full demo proteomics benchmark dataset (3GB), containing an excerpt from [PXD001240](http://proteomecentral.proteomexchange.org/cgi/GetDataset?ID=PXD001240) with 10 minutes from 5 samples in condition A (65% human, 15% yeast, 20% ecoli), and 5 samples in condition B (65% human, 30% yeast, 5% ecoli). This test dataset allows to recreate the main figure of our [paper](TODO), although some minor differences are present as the auto-calibration and Percolator can only use the included data instead of the complete experiment.
 
 ### Windows 10
 

@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import scipy.sparse
 from matplotlib import pyplot as plt
+import matplotlib
 
 # Initializing
 parameter_file_name = "data/lfq_swim_udmse_combined/parameters_QC.json"
@@ -117,8 +118,8 @@ with log.newSection("Plotting cvs"):
         gridsize=1000,
         orient="h"
     )
-    tmp = plt.ylabel("Relative frequency")
-    tmp = plt.xlabel("CV of fully reproducible aggregates")
+    tmp = plt.ylabel("Relative Frequency")
+    tmp = plt.xlabel("CV Of Fully Reproducible Aggregates")
     tmp = plt.yticks([])
     tmp = plt.xlim([0, 0.5])
     # tmp = plt.show()
@@ -139,10 +140,13 @@ with log.newSection("Plotting mgf peaks"):
     fig, ax = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [5, 1]})
     tmp = plt.subplots_adjust(hspace=0.1)
     tmp = ax[0].scatter(a, np.log2(b), marker=".")
-    tmp = ax[0].set_ylabel("Log(Spectrum frequency)")
+    tmp = ax[0].set_ylabel("Log2(Spectrum Frequency)")
     tmp = ax[1].boxplot(spectrum_sizes, whis="range", vert=False, widths=0.5)
     tmp = ax[1].set_yticks([])
-    tmp = ax[1].set_xlabel("Peak count")
+    ax[1].get_xaxis().set_major_formatter(
+        matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ','))
+    )
+    tmp = ax[1].set_xlabel("Peak Count")
     # tmp = plt.show()
     tmp = plt.savefig(parameters["PLOTS_PATH"] + "tenzer_lfq_mgf_peak_counts.pdf", bbox_inches='tight')
     tmp = plt.close()

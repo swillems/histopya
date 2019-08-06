@@ -48,7 +48,7 @@
     "MGF_FILE_NAME": "[OUTPUT_PATH]spectrum.mgf",
     "MINIMUM_OVERLAP": 2,
     "NEIGHBOR_ALL_CHANNELS": true,
-    "NEIGHBOR_THRESHOLD": 0.997,
+    "NEIGHBOR_THRESHOLD": 0.9,
     "OUTPUT_PATH": null,
     "PERCOLATOR_DATA_FILE_NAME": "[OUTPUT_PATH]percolator.csv",
     "PERCOLATOR_DECOY_PIMS": "[PERCOLATOR_PATH]decoy_pims.csv",

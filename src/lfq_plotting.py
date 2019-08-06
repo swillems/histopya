@@ -10,29 +10,31 @@ import numpy as np
 import pandas as pd
 import scipy.sparse
 from matplotlib import pyplot as plt
+import matplotlib
 import seaborn as sns
 from sklearn import linear_model
+import os
 
 # Initializing
 extension = "tenzer"
 # extension = "udmse"
 # extension = "swim"
 if extension == "tenzer":
-    parameter_file_name = "data/tenzer/parameters.json"
+    parameter_file_name = "data/tenzer/parameters_hdf5.json"
     conditions = {
         "A": slice(0, None, 2),
         "B": slice(1, None, 2),
         "QC": slice(0, None, 1)
     }
 elif extension == "udmse":
-    parameter_file_name = "data/lfq_udmse_190327/parameters.json"
+    parameter_file_name = "data/lfq_udmse_190327/parameters_hdf5.json"
     conditions = {
         "A": slice(0, 9, 1),
         "B": slice(9, 18, 1),
         "QC": slice(18, None, 1)
     }
 elif extension == "swim":
-    parameter_file_name = "data/lfq_swim_190327/parameters.json"
+    parameter_file_name = "data/lfq_swim_190327/parameters_hdf5.json"
     conditions = {
         "A": slice(0, 9, 1),
         "B": slice(9, 18, 1),
@@ -41,6 +43,7 @@ elif extension == "swim":
 
 parameters = src.parameters.importParameterDictFromJSON(parameter_file_name)
 log = src.io.Log(parameters["LOG_FILE_NAME"][:-4] + "_" + extension + "_lfq.txt")
+parameters["PLOTS_PATH"] = parameters["OUTPUT_PATH"] + "figures/"
 
 
 # Loading data
@@ -64,15 +67,17 @@ with log.newSection("Loading data"):
         parameters,
     )
     neighbors += neighbors.T
-    base_mass_dict = src.peptides.loadBaseMassDict(parameters, log)
-    proteins, total_protein_sequence, ptms, ptm_matrix = src.peptides.importProteinsAndPtms(parameters, log)
-    peptides, peptide_index_matrix, digestion_matrix = src.peptides.digestProteins(
-        proteins,
-        total_protein_sequence,
-        ptm_matrix,
-        parameters,
-        log,
-    )
+    database = src.peptides.loadDatabase(parameters["DATABASE_FILE_NAME"])
+    base_mass_dict = database["base_mass_dict"]
+    proteins = database["proteins"]
+    total_protein_sequence = database["total_protein_sequence"]
+    # ptms = database["ptms"]
+    # ptm_matrix = database["ptm_matrix"]
+    peptides = database["peptides"]
+    peptide_index_matrix = database["peptide_index_matrix"]
+    # digestion_matrix = database["digestion_matrix"]
+    peptide_masses = database["peptide_masses"]
+    fragments = database["fragments"]
     anchor_peptide_scores = src.io.loadMatrix(
         "ANCHOR_PEPTIDE_SCORES_FILE_NAME",
         parameters,
@@ -194,7 +199,7 @@ with log.newSection("Plotting calibration results"):
     ]:
         average_attribute = quick_anchors[attribute].reshape((-1, 1))
         data = estimation_anchors[attribute] - average_attribute
-        if attribute in parameters["RELATIVE_ATTRIBUTES"]:
+        if attribute in ["MZ", "CALIBRATED_MZ"]:
             data *= 1000000 / average_attribute
             label = "{} PPM".format(attribute)
         else:
@@ -215,9 +220,9 @@ with log.newSection("Plotting calibration results"):
         tmp = ax[y_loc, x_loc].axes.get_yaxis().set_visible(False)
         tmp = ax[y_loc, x_loc].set_xlabel("")
         tmp = ax[y_loc, x_loc].set_ylabel("")
-    tmp = ax[0, 0].set_title(u"Δ MZ (ppm)")
-    tmp = ax[0, 1].set_title(u"Δ DT")
-    tmp = ax[0, 2].set_title(u"Δ RT")
+    tmp = ax[0, 0].set_title(r'$\Delta m/z$ (ppm)')
+    tmp = ax[0, 1].set_title(r'$\Delta t_D$')
+    tmp = ax[0, 2].set_title(r'$\Delta t_R$')
     tmp = ax[1, 0].axes.get_xaxis().set_visible(True)
     tmp = ax[1, 1].axes.get_xaxis().set_visible(True)
     tmp = ax[1, 2].axes.get_xaxis().set_visible(True)
@@ -231,12 +236,16 @@ with log.newSection("Plotting calibration results"):
     tmp = ax[1, 2].tick_params(axis='y', which='both', left=False)
     tmp = ax[0, 0].get_yaxis().set_ticklabels(
         [
-            "Sample {}".format(x.split("_")[-2]) for x in parameters["APEX_FILE_NAMES"]
+            os.path.splitext(
+                os.path.basename(x)
+            )[0] for x in parameters["APEX_FILE_NAMES"]
         ]
     )
     tmp = ax[1, 0].get_yaxis().set_ticklabels(
         [
-            "Sample {}".format(x.split("_")[-2]) for x in parameters["APEX_FILE_NAMES"]
+            os.path.splitext(
+                os.path.basename(x)
+            )[0] for x in parameters["APEX_FILE_NAMES"]
         ]
     )
     tmp = ax[0, 0].axes.get_yaxis().set_visible(True)
@@ -308,11 +317,14 @@ with log.newSection("Plotting unfiltered aggregate intensities and counts"):
             marker="."
         )
         sample_totals.append(np.sum(frequencies))
+    ax[0].get_yaxis().set_major_formatter(
+        matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ','))
+    )
     tmp = ax[0].legend(
         [
-            "Sample {} ({})".format(
-                name.split("_")[-2],
-                count
+            "{} ({} ions)".format(
+                os.path.splitext(os.path.basename(name))[0],
+                format(count, ",")
             ) for name, count in zip(
                 parameters["APEX_FILE_NAMES"],
                 sample_totals
@@ -325,7 +337,7 @@ with log.newSection("Plotting unfiltered aggregate intensities and counts"):
         # mode="expand",
         # borderaxespad=0.
     )
-    tmp = ax[0].set_ylabel("Ion frequency")
+    tmp = ax[0].set_ylabel("Ion Frequency")
     aggregate_frequencies = np.bincount(unfiltered_anchors["ION_COUNT"])
     aggregate_start = np.flatnonzero(aggregate_frequencies > 0)[0]
     tmp = ax[1].plot(
@@ -335,7 +347,7 @@ with log.newSection("Plotting unfiltered aggregate intensities and counts"):
     )
     tmp = ax[1].yaxis.set_label_position("right")
     tmp = ax[1].set_ylabel(
-        "Aggregate log2(frequency)",
+        "Log2(Aggregate Frequency)",
         # rotation=270,
         # ha="left",
         # va="center",
@@ -374,7 +386,7 @@ with log.newSection("Plotting unfiltered aggregate intensities and counts"):
     # )
     tmp = ax[2].boxplot(x, whis="range")
     # tmp = plt.plot(range(1,11), z[:,2], c="grey",linestyle=":")
-    tmp = ax[2].set_ylabel("Log2(A + B)")
+    tmp = ax[2].set_ylabel("Log2(Aggregate Intensity)")
     tmp = ax[2].set_xlabel("Reproducibility")
     # tmp = ax[2].yaxis.grid(which="major", linestyle=":", color='lightgrey', alpha=0.5)
     # tmp = ax[2].set_axisbelow(True)
@@ -388,10 +400,13 @@ with log.newSection("Plotting aggregate consistent coelution counts"):
     fig, ax = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [5, 1]})
     tmp = plt.subplots_adjust(hspace=0.1)
     tmp = ax[0].scatter(a, np.log2(b), marker=".")
-    tmp = ax[0].set_ylabel("Log(Aggregate frequency)")
+    tmp = ax[0].set_ylabel("Log2(Aggregate Frequency)")
     tmp = ax[1].boxplot(np.diff(neighbors.indptr), whis="range", vert=False, widths=0.5)
     tmp = ax[1].set_yticks([])
-    tmp = ax[1].set_xlabel("# Consistently co-eluting aggregates")
+    ax[1].get_xaxis().set_major_formatter(
+        matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ','))
+    )
+    tmp = ax[1].set_xlabel("# Consistently Co-eluting Aggregates")
     # tmp = plt.show()
     tmp = plt.savefig(parameters["PLOTS_PATH"] + extension + "_lfq_aggregate_edge_counts.pdf", bbox_inches='tight')
     tmp = plt.close()
@@ -543,21 +558,21 @@ with log.newSection("Plotting consitent coelution accuracy"):
             h_th,
             y_th
         ), (
-            "logFC = -2 experimental (Ecoli)",
-            "logFC = 0 experimental (Human)",
-            "logFC = 1 experimental (Yeast)",
-            "logFC = -2 expected (Ecoli)",
-            "logFC = 0 expected (Human)",
-            "logFC = 1 expected (Yeast)"
+            "LogFC = -2 Experimental (ECOLI)",
+            "LogFC = 0 Experimental (HUMAN)",
+            "LogFC = 1 Experimental (YEAST)",
+            "LogFC = -2 Expected (ECOLI)",
+            "LogFC = 0 Expected (HUMAN)",
+            "LogFC = 1 Expected (YEAST)"
         ),
         loc="upper left"
     )
-    tmp = plt.xlabel("Consistently co-eluting samples")
+    tmp = plt.xlabel("Consistently Co-eluting Runs")
     tmp = plt.xticks(
         np.arange(parameters["SAMPLE_COUNT"] - 1),
         np.arange(2, parameters["SAMPLE_COUNT"] + 1)
     )
-    tmp = plt.ylabel("% Consistent co-eluting aggregates with equal logFC")
+    tmp = plt.ylabel("% Consistent Co-eluting Aggregates With Equal LogFC")
     # tmp = plt.show()
     tmp = plt.savefig(parameters["PLOTS_PATH"] + extension + "_lfq_edge_accuracy.pdf", bbox_inches='tight')
     tmp = plt.close()
@@ -648,7 +663,7 @@ with log.newSection("Plotting significant aggreggate ion count enrichment"):
     all_frequencies = np.bincount(anchors["ION_COUNT"])
     fig, ax = plt.subplots(1, 1)
     tmp = ax.set_xlabel("Reproducibility")
-    tmp = ax.set_ylabel("log2(frequency)")
+    tmp = ax.set_ylabel("Log2(Frequency)")
     # ax2 = ax.twinx()
     plt_annotated, = ax.plot(
         np.arange(2, parameters["SAMPLE_COUNT"] + 1),
@@ -673,7 +688,7 @@ with log.newSection("Plotting significant aggreggate ion count enrichment"):
     # )
     tmp = ax.legend(
         [plt_annotated, plt_all],
-        ["Annotated aggregates", "All aggregates"],
+        ["Annotated Aggregates", "All Aggregates"],
         # loc='upper center'
     )
     # tmp = ax2.legend(
@@ -684,82 +699,82 @@ with log.newSection("Plotting significant aggreggate ion count enrichment"):
     tmp = plt.savefig(parameters["PLOTS_PATH"] + extension + "_lfq_annotated_aggregate_enrichment.pdf", bbox_inches='tight')
     tmp = plt.close()
 
-# Plot annotation example
-with log.newSection("Plotting significant aggreggate ion annotation example"):
-    top_score_index = np.argmax(anchor_peptide_scores.data)
-    anchor_index = np.searchsorted(
-        anchor_peptide_scores.indptr,
-        top_score_index,
-        "right"
-    ) - 1
-    anchor_candidates = fragment_peptide_indices[
-        slice(*anchor_boundaries[anchor_index])
-    ]
-    anchor_neighbors = neighbors.indices[
-        neighbors.indptr[anchor_index]: neighbors.indptr[anchor_index + 1]
-    ]
-    raw_neighbor_candidates = np.concatenate(
-        [
-            fragment_peptide_indices[
-                slice(*anchor_boundaries[n])
-            ] for n in anchor_neighbors
-        ]
-    )
-    neighbor_candidates = raw_neighbor_candidates[
-        np.isin(
-            raw_neighbor_candidates,
-            anchor_candidates
-        )
-    ]
-    candidates, candidate_counts = np.unique(
-        neighbor_candidates,
-        return_counts=True
-    )
-    counts, frequencies = np.unique(
-        candidate_counts,
-        return_counts=True
-    )
-    counts = np.concatenate([[0], counts])
-    frequency = np.concatenate(
-        [
-            [len(anchor_candidates)],
-            np.cumsum(frequencies[::-1])[::-1]
-        ]
-    )
-    ransac = linear_model.RANSACRegressor()
-    tmp = ransac.fit(
-        counts.reshape(-1, 1)[:-1],
-        np.log2(frequency).reshape(-1, 1)[:-1]
-    )
-    score = -ransac.predict(counts[-1])[0][0]
-    # plt.bar(counts, frequency)
-    # plt.scatter(counts, frequency, marker=".")
-    # plt.xlabel("#Peptides with fragment count")
-    # plt.ylabel("Frequency")
-    # plt.show()
-    tmp = plt.scatter(counts, np.log2(frequency), marker=".")
-    tmp = plt.plot(
-        [
-            0,
-            counts[-1]
-        ],
-        [
-            ransac.predict(counts[0])[0][0],
-            ransac.predict(counts[-1])[0][0]
-        ]
-    )
-    tmp = plt.plot(
-        [counts[-1], counts[-1]],
-        [-score, np.log2(frequencies[-1])],
-        linestyle="--",
-        c="grey"
-    )
-    tmp = plt.xlabel("#Peptides with fragment count")
-    tmp = plt.ylabel("Log frequency")
-    tmp = plt.title("Score={}".format(score))
-    # plt.show()
-    tmp = plt.savefig(parameters["PLOTS_PATH"] + extension + "_lfq_annotation_example.pdf", bbox_inches='tight')
-    tmp = plt.close()
+# # Plot annotation example
+# with log.newSection("Plotting significant aggreggate ion annotation example"):
+#     top_score_index = np.argmax(anchor_peptide_scores.data)
+#     anchor_index = np.searchsorted(
+#         anchor_peptide_scores.indptr,
+#         top_score_index,
+#         "right"
+#     ) - 1
+#     anchor_candidates = fragment_peptide_indices[
+#         slice(*anchor_boundaries[anchor_index])
+#     ]
+#     anchor_neighbors = neighbors.indices[
+#         neighbors.indptr[anchor_index]: neighbors.indptr[anchor_index + 1]
+#     ]
+#     raw_neighbor_candidates = np.concatenate(
+#         [
+#             fragment_peptide_indices[
+#                 slice(*anchor_boundaries[n])
+#             ] for n in anchor_neighbors
+#         ]
+#     )
+#     neighbor_candidates = raw_neighbor_candidates[
+#         np.isin(
+#             raw_neighbor_candidates,
+#             anchor_candidates
+#         )
+#     ]
+#     candidates, candidate_counts = np.unique(
+#         neighbor_candidates,
+#         return_counts=True
+#     )
+#     counts, frequencies = np.unique(
+#         candidate_counts,
+#         return_counts=True
+#     )
+#     counts = np.concatenate([[0], counts])
+#     frequency = np.concatenate(
+#         [
+#             [len(anchor_candidates)],
+#             np.cumsum(frequencies[::-1])[::-1]
+#         ]
+#     )
+#     ransac = linear_model.RANSACRegressor()
+#     tmp = ransac.fit(
+#         counts.reshape(-1, 1)[:-1],
+#         np.log2(frequency).reshape(-1, 1)[:-1]
+#     )
+#     score = -ransac.predict(counts[-1])[0][0]
+#     # plt.bar(counts, frequency)
+#     # plt.scatter(counts, frequency, marker=".")
+#     # plt.xlabel("#Peptides with fragment count")
+#     # plt.ylabel("Frequency")
+#     # plt.show()
+#     tmp = plt.scatter(counts, np.log2(frequency), marker=".")
+#     tmp = plt.plot(
+#         [
+#             0,
+#             counts[-1]
+#         ],
+#         [
+#             ransac.predict(counts[0])[0][0],
+#             ransac.predict(counts[-1])[0][0]
+#         ]
+#     )
+#     tmp = plt.plot(
+#         [counts[-1], counts[-1]],
+#         [-score, np.log2(frequencies[-1])],
+#         linestyle="--",
+#         c="grey"
+#     )
+#     tmp = plt.xlabel("#Peptides with fragment count")
+#     tmp = plt.ylabel("Log frequency")
+#     tmp = plt.title("Score={}".format(score))
+#     # plt.show()
+#     tmp = plt.savefig(parameters["PLOTS_PATH"] + extension + "_lfq_annotation_example.pdf", bbox_inches='tight')
+#     tmp = plt.close()
 
 
 # # Plot browser example

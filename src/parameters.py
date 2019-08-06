@@ -5,8 +5,9 @@ import os
 import re
 import src.io
 import multiprocessing as mp
-import scipy.stats
-from scipy.special import binom as binom
+# import math
+# import scipy.stats
+# from scipy.special import binom as binom
 
 
 DEFAULT_PARAMETERS_FILE_NAME = "lib/defaults/default_parameters_hdf5.json"
@@ -190,28 +191,31 @@ def __parseSamples(parameters):
     if isinstance(parameters["MINIMUM_OVERLAP"], int):
         neighbor_threshold = parameters["NEIGHBOR_THRESHOLD"]
         sample_count = parameters["SAMPLE_COUNT"]
-        # percentile_limit = parameters["ANCHOR_ALIGNMENT_PERCENTILE_THRESHOLD"]
-        percentile_limit = (
-            1 - (
-                1 - scipy.stats.norm.cdf(
-                    parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"]
-                )
-            ) * 2
-        ) ** 2 # DT and RT are indepently done
+        # # percentile_limit = parameters["ANCHOR_ALIGNMENT_PERCENTILE_THRESHOLD"]
+        # percentile_limit = (
+        #     1 - (
+        #         1 - scipy.stats.norm.cdf(
+        #             parameters["ANCHOR_ALIGNMENT_DEVIATION_FACTOR"]
+        #         )
+        #     ) * 2
+        # ) ** 2 # DT and RT are indepently done
         minimum_overlap = parameters["MINIMUM_OVERLAP"]
-        minimum_hits = [minimum_overlap]
-        for total in range(1, sample_count + 1):
-            select = total
-            target = binom(total, select)
-            target *= percentile_limit**select
-            target *= (1 - percentile_limit)**(total - select)
-            while target < neighbor_threshold:
-                select -= 1
-                new_target = binom(total, select)
-                new_target *= percentile_limit**select
-                new_target *= (1 - percentile_limit)**(total - select)
-                target += new_target
-            minimum_hits.append(max(select, minimum_overlap))
+        # minimum_hits = [minimum_overlap]
+        # for total in range(1, sample_count + 1):
+        #     select = total
+        #     target = binom(total, select)
+        #     target *= percentile_limit**select
+        #     target *= (1 - percentile_limit)**(total - select)
+        #     while target < neighbor_threshold:
+        #         select -= 1
+        #         new_target = binom(total, select)
+        #         new_target *= percentile_limit**select
+        #         new_target *= (1 - percentile_limit)**(total - select)
+        #         target += new_target
+        #     minimum_hits.append(max(select, minimum_overlap))
+        minimum_hits = []
+        for total in range(sample_count + 1):
+            minimum_hits.append(max(round(total * neighbor_threshold), minimum_overlap))
         parameters["MINIMUM_OVERLAP"] = minimum_hits
 
 
