@@ -2,7 +2,7 @@
 
 ## Overview
 
-Ion-networks are a complete yet sparse representation of an MS experiment containing multiple samples. It was originally developed for LC-IMS-MS DIA data, but the IMS dimension can easily be replaced by e.g. a scanning quadrupole coordinate, since precursor m/z and drift time are correlated. The original paper describing ion-networks is available in [bioRxiv](TODO).
+Ion-networks are a complete yet sparse representation of an MS experiment containing multiple samples. It was originally developed for LC-IMS-MS DIA data, but the IMS dimension can easily be replaced by e.g. a scanning quadrupole coordinate, since precursor m/z and drift time are correlated. The original paper describing ion-networks is available on [bioRxiv](TODO).
 
 The current implementation allows to
 
@@ -31,7 +31,9 @@ wget --output-document percolator/percolator_3_02_01_ubuntu.tar.gz https://githu
 tar xzvf percolator/percolator_3_02_01_ubuntu.tar.gz -C percolator
 sudo dpkg -i percolator/elude-v3-02-linux-amd64.deb
 sudo dpkg -i percolator/percolator-v3-02-linux-amd64.deb
-git clone https://github.com/swillems/histopya
+wget https://github.com/swillems/histopya/archive/version_0.1.190806.tar.gz
+tar xzvf version_0.1.190809.tar.gz
+mv histopya-version_0.1.190809 histopya
 cd histopya
 bash install/install.sh
 chmod -R 777 .
@@ -57,7 +59,9 @@ sudo dpkg -i percolator/percolator-v3-02-linux-amd64.deb
 Next, install the source for for ion-networks itself:
 
 ```
-git clone https://github.com/swillems/histopya
+wget https://github.com/swillems/histopya/archive/version_0.1.190806.tar.gz
+tar xzvf version_0.1.190809.tar.gz
+mv histopya-version_0.1.190809 histopya
 cd histopya
 bash install/install.sh
 ```

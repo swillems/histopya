@@ -5,7 +5,7 @@ import os
 import re
 import src.io
 import multiprocessing as mp
-# import math
+import math
 # import scipy.stats
 # from scipy.special import binom as binom
 
@@ -215,7 +215,7 @@ def __parseSamples(parameters):
         #     minimum_hits.append(max(select, minimum_overlap))
         minimum_hits = []
         for total in range(sample_count + 1):
-            minimum_hits.append(max(round(total * neighbor_threshold), minimum_overlap))
+            minimum_hits.append(max(math.floor(total * neighbor_threshold), minimum_overlap))
         parameters["MINIMUM_OVERLAP"] = minimum_hits
 
 

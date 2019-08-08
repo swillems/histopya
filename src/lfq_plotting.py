@@ -12,8 +12,9 @@ import scipy.sparse
 from matplotlib import pyplot as plt
 import matplotlib
 import seaborn as sns
-from sklearn import linear_model
+# from sklearn import linear_model
 import os
+
 
 # Initializing
 extension = "tenzer"
@@ -44,6 +45,8 @@ elif extension == "swim":
 parameters = src.parameters.importParameterDictFromJSON(parameter_file_name)
 log = src.io.Log(parameters["LOG_FILE_NAME"][:-4] + "_" + extension + "_lfq.txt")
 parameters["PLOTS_PATH"] = parameters["OUTPUT_PATH"] + "figures/"
+if not os.path.exists(parameters["PLOTS_PATH"]):
+    os.makedirs(parameters["PLOTS_PATH"])
 
 
 # Loading data
