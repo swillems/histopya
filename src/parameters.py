@@ -248,7 +248,7 @@ def __setVersion(parameters):
 def importParameters(input_file_name):
     try:
         parameters = getDefaultParameters()
-        parameters = src.parameters.updateParameters(
+        parameters = updateParameters(
             parameters,
             input_file_name
         )

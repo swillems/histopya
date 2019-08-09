@@ -31,6 +31,7 @@ wget --output-document percolator/percolator_3_02_01_ubuntu.tar.gz https://githu
 tar xzvf percolator/percolator_3_02_01_ubuntu.tar.gz -C percolator
 sudo dpkg -i percolator/elude-v3-02-linux-amd64.deb
 sudo dpkg -i percolator/percolator-v3-02-linux-amd64.deb
+rm -r percolator
 wget https://github.com/swillems/histopya/archive/version_0.1.190809.tar.gz
 tar xzvf version_0.1.190809.tar.gz
 mv histopya-version_0.1.190809 histopya
@@ -45,7 +46,7 @@ NOTE: The WSL is a hidden subfolder located at e.g. ```C:\Users\sanwill\AppData\
 
 ### Linux
 
-First, run the following commands to install all dependencies with e.g. *apt* on Ubuntu 18.04 (skip this if already satisfied):
+First, run the following commands to install all dependencies with e.g. *apt* and *dpkg* on Ubuntu 18.04 (skip this if already satisfied):
 
 ```
 sudo apt update && sudo apt upgrade && sudo apt install python3.6 python3.6-venv python3.6-tk python3 python3-venv python3-tk libgomp1
@@ -54,6 +55,7 @@ wget --output-document percolator/percolator_3_02_01_ubuntu.tar.gz https://githu
 tar xzvf percolator/percolator_3_02_01_ubuntu.tar.gz -C percolator
 sudo dpkg -i percolator/elude-v3-02-linux-amd64.deb
 sudo dpkg -i percolator/percolator-v3-02-linux-amd64.deb
+rm -r percolator
 ```
 
 Next, install the source for for ion-networks itself:

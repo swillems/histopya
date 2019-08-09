@@ -12,8 +12,8 @@ from pyteomics import mgf
 
 
 # Loading mgf spectra
-parameter_file_name = "projects/mgf_dda_parameters.json"
-mgf_file_name = 'data/lfq_qc_mgf/lfq_qc_dda.mgf'
+parameter_file_name = "projects/dda_parameters.json"
+mgf_file_name = 'data/dda/lfq_qc_dda.mgf'
 # parameter_file_name = "data/searle_hela_dda/parameters.json"
 parameters = src.parameters.importParameterDictFromJSON(parameter_file_name)
 log = src.io.Log(parameters["LOG_FILE_NAME"][:-4] + "interactive.txt")
