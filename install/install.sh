@@ -34,12 +34,13 @@ venv/bin/python -m pip install -r install/pip_requirements.txt
 echo "Unpacking databases"
 wget --output-document install/databases.tar.gz https://www.dropbox.com/s/f57aty1d8np8npy/databases_hdf5.tar.gz?dl=0
 tar xzvf install/databases.tar.gz -C lib
+rm install/databases.tar.gz
 
 # TODO set download paths to proteomeXchange instead of dropbox
 echo "Unpacking test data"
-wget --output-document install/test_data.tar.gz https://www.dropbox.com/s/tgyy8nzkiyerrj8/test_lfq_apex.tar.gz?dl=0
-mkdir data/test_lfq
-tar xzvf install/test_data.tar.gz -C data/test_lfq
+wget --output-document install/test_lfq.tar.gz https://www.dropbox.com/s/tgyy8nzkiyerrj8/test_lfq_apex.tar.gz?dl=0
+tar xzvf install/test_lfq.tar.gz -C data
+rm install/test_lfq.tar.gz
 
 echo "################################################################################"
 echo "Installation complete!"

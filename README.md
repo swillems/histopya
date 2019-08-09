@@ -2,7 +2,7 @@
 
 ## Overview
 
-Ion-networks are a complete yet sparse representation of an MS experiment containing multiple samples. It was originally developed for LC-IMS-MS DIA data, but the IMS dimension can easily be replaced by e.g. a scanning quadrupole coordinate, since precursor m/z and drift time are correlated. The original paper describing ion-networks is available on [bioRxiv](TODO).
+Ion-networks are a complete yet sparse representation of an MS experiment containing multiple samples. It was originally developed for LC-IMS-MS DIA data, but the IMS dimension can easily be replaced by e.g. a scanning quadrupole coordinate, since precursor m/z and drift time are correlated. The original paper describing ion-networks is available on [bioRxiv](https://www.biorxiv.org/content/10.1101/TODO).
 
 The current implementation allows to
 
@@ -17,7 +17,7 @@ The complete software suite was developed for Linux. As Windows 10 nowadays come
 * The full software suite to Create/Annotate/Browse ion-networks.
 * Some standard indexed proteomic databases (1GB).
 * [Percolator and Elude](https://github.com/percolator/percolator).
-* A full demo proteomics benchmark dataset (3GB), containing an excerpt from [PXD001240](http://proteomecentral.proteomexchange.org/cgi/GetDataset?ID=PXD001240) with 10 minutes from 5 samples in condition A (65% human, 15% yeast, 20% ecoli), and 5 samples in condition B (65% human, 30% yeast, 5% ecoli). This test dataset allows to recreate the main figure of our [paper](TODO), although some minor differences are present as the auto-calibration and Percolator can only use the included data instead of the complete experiment.
+* A full demo proteomics benchmark dataset (3GB), containing an excerpt from [PXD001240](http://proteomecentral.proteomexchange.org/cgi/GetDataset?ID=PXD001240) with 10 minutes from 5 samples in condition A (65% human, 15% yeast, 20% ecoli), and 5 samples in condition B (65% human, 30% yeast, 5% ecoli). This test dataset allows to recreate the main figure of our [paper](TODO), although some minor differences are present as the automatic estimation, automatic calibration and Percolator can only use the included data instead of the complete experiment.
 
 ### Windows 10
 
@@ -31,7 +31,7 @@ wget --output-document percolator/percolator_3_02_01_ubuntu.tar.gz https://githu
 tar xzvf percolator/percolator_3_02_01_ubuntu.tar.gz -C percolator
 sudo dpkg -i percolator/elude-v3-02-linux-amd64.deb
 sudo dpkg -i percolator/percolator-v3-02-linux-amd64.deb
-wget https://github.com/swillems/histopya/archive/version_0.1.190806.tar.gz
+wget https://github.com/swillems/histopya/archive/version_0.1.190809.tar.gz
 tar xzvf version_0.1.190809.tar.gz
 mv histopya-version_0.1.190809 histopya
 cd histopya
@@ -59,11 +59,12 @@ sudo dpkg -i percolator/percolator-v3-02-linux-amd64.deb
 Next, install the source for for ion-networks itself:
 
 ```
-wget https://github.com/swillems/histopya/archive/version_0.1.190806.tar.gz
+wget https://github.com/swillems/histopya/archive/version_0.1.190809.tar.gz
 tar xzvf version_0.1.190809.tar.gz
 mv histopya-version_0.1.190809 histopya
 cd histopya
 bash install/install.sh
+chmod -R 777 .
 ```
 
 Finally, test if it is correctly installed by Creating/Annotating/Browsing the demo dataset with:
@@ -100,8 +101,8 @@ Analysis of ion-networks can be done both by the command-line and with a graphic
 
 ```
 {
-    "APEX_PATH": "data/test_lfq/apex/",
-    "OUTPUT_PATH": "data/test_lfq/results/",
+    "APEX_PATH": "data/test_lfq/",
+    "OUTPUT_PATH": "projects/test_lfq/",
     "DATABASE_FILE_NAME": "lib/databases/lfq_benchmark.hdf5"
 }
 ```
@@ -118,8 +119,8 @@ bash run_cmd.sh -i install/test_lfq_parameters.json -a C
 
 While the default parameters generally suffice, the following parameters can have a significant effect:
 
-* ```"SIGNAL_COUNT_THRESHOLD": 0.997``` Proxy for robustness. Higher values have less deconvoluting power, but higher robustness. Set closer to 1 for experiments with many samples.
-* ```"NEIGHBOR_THRESHOLD": 2``` Minimum reproducibility for an aggregate, set higher for more stringent denoising.
+* ```"NEIGHBOR_THRESHOLD": 0.997``` Proxy for robustness. Higher values have less deconvoluting power, but higher robustness. Set closer to 1 for experiments with many samples.
+* ```"SIGNAL_COUNT_THRESHOLD": 2``` Minimum reproducibility for an aggregate, set higher for more stringent denoising.
 
 ### (A)nnotate (proteomics) ion-network
 

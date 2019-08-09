@@ -1,6 +1,6 @@
 {
     "CPU_COUNT": -1,
-    "APEX_PATH": "data/test_lfq/apex/",
+    "APEX_PATH": "data/test_lfq/",
     "OUTPUT_PATH": "projects/test_lfq/",
     "DATABASE_FILE_NAME": "lib/databases/lfq_benchmark.hdf5"
 }

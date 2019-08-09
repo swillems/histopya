@@ -630,7 +630,7 @@ with log.newSection("Plotting aggreggate annotation accuracy"):
         )
     tmp = plt.legend(unique_organisms)
     tmp = plt.xlabel("Log2(QC)")
-    tmp = plt.ylabel("Log2(A / B)")
+    tmp = plt.ylabel("Log2(B/A)")
     # tmp = plt.show()
     tmp = plt.savefig(parameters["PLOTS_PATH"] + extension + "_lfq_annotation_accuracy.pdf", bbox_inches='tight')
     tmp = plt.close()
