@@ -32,13 +32,13 @@ venv/bin/python -m pip install -r install/pip_requirements.txt
 
 # TODO set download paths to proteomeXchange instead of dropbox
 echo "Unpacking databases"
-wget --output-document install/databases.tar.gz https://www.dropbox.com/s/f57aty1d8np8npy/databases_hdf5.tar.gz?dl=0
+wget --output-document install/databases.tar.gz "https://filesender.belnet.be/download.php?token=bee888e9-6cc3-46b2-9610-7dcb28db3059&files_ids=48998"
 tar xzvf install/databases.tar.gz -C lib
 rm install/databases.tar.gz
 
 # TODO set download paths to proteomeXchange instead of dropbox
 echo "Unpacking test data"
-wget --output-document install/test_lfq.tar.gz https://filesender.belnet.be/?s=download&token=9629898d-f22c-4cba-87a2-f99668858063
+wget --output-document install/test_lfq.tar.gz "https://filesender.belnet.be/download.php?token=bee888e9-6cc3-46b2-9610-7dcb28db3059&files_ids=48999"
 tar xzvf install/test_lfq.tar.gz -C data
 rm install/test_lfq.tar.gz
 
