@@ -38,7 +38,7 @@ rm install/databases.tar.gz
 
 # TODO set download paths to proteomeXchange instead of dropbox
 echo "Unpacking test data"
-wget --output-document install/test_lfq.tar.gz https://www.dropbox.com/s/tgyy8nzkiyerrj8/test_lfq_apex.tar.gz?dl=0
+wget --output-document install/test_lfq.tar.gz https://filesender.belnet.be/?s=download&token=9629898d-f22c-4cba-87a2-f99668858063
 tar xzvf install/test_lfq.tar.gz -C data
 rm install/test_lfq.tar.gz
 
