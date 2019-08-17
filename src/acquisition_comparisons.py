@@ -12,80 +12,45 @@ import scipy.sparse
 from matplotlib import pyplot as plt
 import matplotlib
 import seaborn as sns
+import os
 
 
 # Initializing
-parameter_file_name = "data/lfq_swim_udmse_combined/parameters_QC.json"
+parameter_file_name = "projects/hdmse_swim_qc/parameters.json"
 parameters = src.parameters.importParameterDictFromJSON(parameter_file_name)
 log = src.io.Log(parameters["LOG_FILE_NAME"][:-4] + "_interactive.txt")
-
+parameters["PLOTS_PATH"] = parameters["OUTPUT_PATH"] + "figures/"
+if not os.path.exists(parameters["PLOTS_PATH"]):
+    os.makedirs(parameters["PLOTS_PATH"])
 
 # Loading data
 with log.newSection("Loading SWIM/HDMSE data"):
-    anchors = src.io.loadArray("ANCHORS_FILE_NAME", parameters)
     anchor_ions = src.io.loadMatrix(
         "ANCHOR_IONS_FILE_NAME",
         parameters,
     )
     ions = src.io.loadArray("IONS_FILE_NAME", parameters)
-    ion_alignment_parameters = src.io.loadJSON(
-        "ION_ALIGNMENT_PARAMETERS_FILE_NAME",
-        parameters,
-    )
-    anchor_alignment_parameters = src.io.loadJSON(
-        "ANCHOR_ALIGNMENT_PARAMETERS_FILE_NAME",
-        parameters,
-    )
-    neighbors = src.io.loadMatrix(
-        "ANCHOR_NEIGHBORS_FILE_NAME",
-        parameters,
-    )
-    neighbors += neighbors.T
-    base_mass_dict = src.peptides.loadBaseMassDict(parameters, log)
-    proteins, total_protein_sequence, ptms, ptm_matrix = src.peptides.importProteinsAndPtms(parameters, log)
-    peptides, peptide_index_matrix, digestion_matrix = src.peptides.digestProteins(
-        proteins,
-        total_protein_sequence,
-        ptm_matrix,
-        parameters,
-        log,
-    )
-    anchor_peptide_scores = src.io.loadMatrix(
-        "ANCHOR_PEPTIDE_SCORES_FILE_NAME",
-        parameters,
-    )
-    anchor_peptide_match_counts = src.io.loadMatrix(
-        "ANCHOR_PEPTIDE_MATCH_COUNTS_FILE_NAME",
-        parameters,
-    )
-    peptide_masses, fragments = src.peptides.calculateMasses(
-        peptides,
-        peptide_index_matrix,
-        base_mass_dict,
-        total_protein_sequence,
-        parameters,
-        log,
-    )
-    anchor_boundaries, fragment_peptide_indices, fragment_indices = src.aggregates.matchAnchorsToFragments(
-        fragments,
-        anchors,
-        base_mass_dict,
-        parameters,
-        log
-    )
 
 
 # Plotting cvs
 with log.newSection("Plotting SWIM/HDMSE cvs"):
     full_anchor_ions = (
-        anchor_ions[anchors["ION_COUNT"] == parameters["SAMPLE_COUNT"]]
+        anchor_ions[np.diff(anchor_ions.indptr) == parameters["SAMPLE_COUNT"]]
     ).todense().A
     cints = ions["CALIBRATED_INTENSITY"][full_anchor_ions]
     cints_swim = cints[:, :9]
     cints_udmse = cints[:, 9:]
     cints_swim_cv = scipy.stats.variation(cints_swim, axis=1)
     cints_udmse_cv = scipy.stats.variation(cints_udmse, axis=1)
-    scipy.stats.ttest_rel(cints_swim_cv, cints_udmse_cv)
+    results = scipy.stats.ttest_rel(cints_swim_cv, cints_udmse_cv)
+    log.printMessage(
+        "SWIM/UDMSE median cvs (ttest: {}, pval: {}): {} {}".format(
+            results[0],
+            results[1],
+            np.median(cints_swim_cv),
+            np.median(cints_udmse_cv),
+        )
+    )
     d = pd.melt(
         pd.DataFrame(
             np.stack(
@@ -118,24 +83,18 @@ with log.newSection("Plotting SWIM/HDMSE cvs"):
     tmp = plt.close()
 
 
-# Loading mgf spectra
-parameter_file_name = "projects/mgf_dda_parameters.json"
-# parameter_file_name = "data/searle_hela_dda/parameters.json"
-parameters = src.parameters.importParameterDictFromJSON(parameter_file_name)
-log = src.io.Log(parameters["LOG_FILE_NAME"][:-4] + "interactive.txt")
-with log.newSection("DDA ion-network loading"):
-    mgf_anchors = src.io.loadArray("ANCHORS_FILE_NAME", parameters)
-    spectra = src.io.loadArray("IONS_FILE_NAME", parameters)
-    mgf_neighbors = src.io.loadMatrix(
-        "ANCHOR_NEIGHBORS_FILE_NAME",
-        parameters,
-    )
-
 
 
 # Plotting mgf edge COUNTS
-# with log.newSection("Plotting mgf peaks"):
+parameter_file_name = "projects/dda/parameters.json"
+# parameter_file_name = "data/searle_hela_dda/parameters.json"
+parameters = src.parameters.importParameterDictFromJSON(parameter_file_name)
+log = src.io.Log(parameters["LOG_FILE_NAME"][:-4] + "interactive.txt")
+parameters["PLOTS_PATH"] = parameters["OUTPUT_PATH"] + "figures/"
+if not os.path.exists(parameters["PLOTS_PATH"]):
+    os.makedirs(parameters["PLOTS_PATH"])
 with log.newSection("DDA mgf peak count plotting"):
+    spectra = src.io.loadArray("IONS_FILE_NAME", parameters)
     # spectrum_sizes = np.repeat(spectrum_sizes, spectrum_sizes)
     a, b = np.unique(spectra["PEAK_COUNT"], return_counts=True)
     fig, ax = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [5, 1]})
@@ -149,7 +108,7 @@ with log.newSection("DDA mgf peak count plotting"):
     )
     tmp = ax[1].set_xlabel("Peak Count")
     # tmp = plt.show()
-    tmp = plt.savefig(parameters["OUTPUT_PATH"] + "lfq_mgf_peak_counts.pdf", bbox_inches='tight')
+    tmp = plt.savefig(parameters["PLOTS_PATH"] + "lfq_mgf_peak_counts.pdf", bbox_inches='tight')
     tmp = plt.close()
 
 
@@ -182,17 +141,17 @@ with log.newSection("DDA mgf peak count plotting"):
 # extension = "udmse"
 # extension = "swim"
 # extension = "dda"
-extension = "sonar"
+extension = "tenzer"
 if extension == "tenzer":
-    parameter_file_name = "projects/tenzer_parameters.json"
+    parameter_file_name = "projects/tenzer/parameters.json"
 elif extension == "udmse":
-    parameter_file_name = "projects/udmse_parameters.json"
+    parameter_file_name = "projects/udmse/parameters.json"
 elif extension == "swim":
-    parameter_file_name = "projects/swim_parameters.json"
+    parameter_file_name = "projects/swim/parameters.json"
 elif extension == "sonar":
-    parameter_file_name = "projects/sonar_parameters.json"
+    parameter_file_name = "projects/sonar/parameters.json"
 elif extension == "dda":
-    parameter_file_name = "projects/dda_parameters.json"
+    parameter_file_name = "projects/dda/parameters.json"
 
 
 parameters = src.parameters.getDefaultParameters()
@@ -211,6 +170,7 @@ with log.newSection("Loading ion-network annotation"):
     peptide_index_matrix = database["peptide_index_matrix"]
     peptide_masses = database["peptide_masses"]
     fragments = database["fragments"]
+    anchors = src.io.loadArray("ANCHORS_FILE_NAME", parameters)
     anchor_peptide_scores = src.io.loadMatrix(
         "ANCHOR_PEPTIDE_SCORES_FILE_NAME",
         parameters,
@@ -287,5 +247,23 @@ with log.newSection("Calculating chimericy"):
         ]
     )
     chimeric = np.flatnonzero(aa_peps != bb_peps)
-    log.printMessage("Annotated edges: {} ({})".format(n.nnz, neighbors.nnz / n.nnz))
+    log.printMessage(
+        "Full neighbor 25, 50, 75 percentiles: {}, {}, {}".format(
+            *map(int, np.percentile(np.diff(neighbors.indptr), [25, 50, 75]))
+        )
+    )
+    log.printMessage(
+        "Annotated neighbor 25, 50, 75 percentiles: {}, {}, {}".format(
+            *map(int, np.percentile(np.diff(n.indptr), [25, 50, 75]))
+        )
+    )
+    log.printMessage("Annotated edges: {} ({})".format(n.nnz, n.nnz / neighbors.nnz))
     log.printMessage("Chimericy count: {} ({})".format(len(chimeric), len(chimeric) / n.nnz))
+    enrichment = np.bincount(anchors["ION_COUNT"][np.unique(significant_anchors)])
+    total = np.bincount(anchors["ION_COUNT"])
+    log.printMessage(
+        "Annotation enrichment: two-fold {:.2f}%, fully {:.2f}%".format(
+            100 * enrichment[2] / total[2],
+            100 * enrichment[-1] / total[-1]
+        )
+    )

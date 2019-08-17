@@ -21,21 +21,21 @@ extension = "tenzer"
 # extension = "udmse"
 # extension = "swim"
 if extension == "tenzer":
-    parameter_file_name = "data/tenzer/parameters_hdf5.json"
+    parameter_file_name = "projects/tenzer/parameters.json"
     conditions = {
         "A": slice(0, None, 2),
         "B": slice(1, None, 2),
         "QC": slice(0, None, 1)
     }
 elif extension == "udmse":
-    parameter_file_name = "data/lfq_udmse_190327/parameters_hdf5.json"
+    parameter_file_name = "projects/udmse/parameters.json"
     conditions = {
         "A": slice(0, 9, 1),
         "B": slice(9, 18, 1),
         "QC": slice(18, None, 1)
     }
 elif extension == "swim":
-    parameter_file_name = "data/lfq_swim_190327/parameters_hdf5.json"
+    parameter_file_name = "projects/swim/parameters.json"
     conditions = {
         "A": slice(0, 9, 1),
         "B": slice(9, 18, 1),
