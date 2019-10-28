@@ -2,7 +2,7 @@
 
 ## Overview
 
-Ion-networks are a complete yet sparse representation of an MS experiment containing multiple samples. It was originally developed for LC-IMS-MS DIA data, but the IMS dimension can easily be replaced by e.g. a scanning quadrupole coordinate, since precursor m/z and drift time are correlated. The original paper describing ion-networks is available on [bioRxiv](https://www.biorxiv.org/content/10.1101/726273v2) and all original data is available at [PRIDE PXD015318](www.ebi.ac.uk/pride/archive/projects/PXD015318).
+Ion-networks are a complete yet sparse representation of an MS experiment containing multiple samples. It was originally developed for LC-IMS-MS DIA data, but the IMS dimension can easily be replaced by e.g. a scanning quadrupole coordinate, since precursor m/z and drift time are correlated. The original paper describing ion-networks is available on [bioRxiv](https://www.biorxiv.org/content/10.1101/726273v2) and all original data is available at [PRIDE PXD015318](https://www.ebi.ac.uk/pride/archive/projects/PXD015318).
 
 The current implementation allows to
 
