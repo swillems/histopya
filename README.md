@@ -2,7 +2,7 @@
 
 ## Overview
 
-Ion-networks are a complete yet sparse representation of an MS experiment containing multiple samples. It was originally developed for LC-IMS-MS DIA data, but the IMS dimension can easily be replaced by e.g. a scanning quadrupole coordinate, since precursor m/z and drift time are correlated. The original paper describing ion-networks is available on [bioRxiv](https://www.biorxiv.org/content/10.1101/TODO).
+Ion-networks are a complete yet sparse representation of an MS experiment containing multiple samples. It was originally developed for LC-IMS-MS DIA data, but the IMS dimension can easily be replaced by e.g. a scanning quadrupole coordinate, since precursor m/z and drift time are correlated. The original paper describing ion-networks is available on [bioRxiv](https://www.biorxiv.org/content/10.1101/726273v2) and all original data is available at [PRIDE PXD015318](www.ebi.ac.uk/pride/archive/projects/PXD015318).
 
 The current implementation allows to
 
@@ -17,7 +17,7 @@ The complete software suite was developed for Linux. As Windows 10 nowadays come
 * The full software suite to Create/Annotate/Browse ion-networks.
 * Some standard indexed proteomic databases (1GB).
 * [Percolator and Elude](https://github.com/percolator/percolator).
-* A full demo proteomics benchmark dataset (3GB), containing an excerpt from [PXD001240](http://proteomecentral.proteomexchange.org/cgi/GetDataset?ID=PXD001240) with 10 minutes from 5 samples in condition A (65% human, 15% yeast, 20% ecoli), and 5 samples in condition B (65% human, 30% yeast, 5% ecoli). This test dataset allows to recreate the main figure of our [paper](TODO), although some minor differences are present as the automatic estimation, automatic calibration and Percolator can only use the included data instead of the complete experiment.
+* A full demo proteomics benchmark dataset (3GB), containing an excerpt from [PXD001240](http://proteomecentral.proteomexchange.org/cgi/GetDataset?ID=PXD001240) with 10 minutes from 5 samples in condition A (65% human, 15% yeast, 20% ecoli), and 5 samples in condition B (65% human, 30% yeast, 5% ecoli). This test dataset allows to recreate the main figure of our [paper](https://www.biorxiv.org/content/10.1101/726273v2), although some minor differences are present as the automatic estimation, automatic calibration and Percolator can only use the included data instead of the complete experiment.
 
 ### Windows 10
 
@@ -32,9 +32,9 @@ tar xzvf percolator/percolator_3_02_01_ubuntu.tar.gz -C percolator
 sudo dpkg -i percolator/elude-v3-02-linux-amd64.deb
 sudo dpkg -i percolator/percolator-v3-02-linux-amd64.deb
 rm -r percolator
-wget https://github.com/swillems/histopya/archive/version_0.1.190809.tar.gz
-tar xzvf version_0.1.190809.tar.gz
-mv histopya-version_0.1.190809 histopya
+wget https://github.com/swillems/histopya/archive/version_0.1.191028.tar.gz
+tar xzvf version_0.1.191028.tar.gz
+mv histopya-version_0.1.191028 histopya
 cd histopya
 bash install/install.sh
 chmod -R 777 .
@@ -61,9 +61,9 @@ rm -r percolator
 Next, install the source for for ion-networks itself:
 
 ```
-wget https://github.com/swillems/histopya/archive/version_0.1.190809.tar.gz
-tar xzvf version_0.1.190809.tar.gz
-mv histopya-version_0.1.190809 histopya
+wget https://github.com/swillems/histopya/archive/version_0.1.191028.tar.gz
+tar xzvf version_0.1.191028.tar.gz
+mv histopya-version_0.1.191028 histopya
 cd histopya
 bash install/install.sh
 chmod -R 777 .

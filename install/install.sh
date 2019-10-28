@@ -30,15 +30,13 @@ echo "Installing python dependancies..."
 venv/bin/python -m pip install --upgrade pip
 venv/bin/python -m pip install -r install/pip_requirements.txt
 
-# TODO set download paths to proteomeXchange instead of dropbox
 echo "Unpacking databases"
-wget --output-document install/databases.tar.gz "https://filesender.belnet.be/download.php?token=bee888e9-6cc3-46b2-9610-7dcb28db3059&files_ids=48998"
+wget --output-document install/databases.tar.gz "https://www.ebi.ac.uk/pride/archive/files/436430111"
 tar xzvf install/databases.tar.gz -C lib
 rm install/databases.tar.gz
 
-# TODO set download paths to proteomeXchange instead of dropbox
 echo "Unpacking test data"
-wget --output-document install/test_lfq.tar.gz "https://filesender.belnet.be/download.php?token=bee888e9-6cc3-46b2-9610-7dcb28db3059&files_ids=48999"
+wget --output-document install/test_lfq.tar.gz "https://www.ebi.ac.uk/pride/archive/files/436420127"
 tar xzvf install/test_lfq.tar.gz -C data
 rm install/test_lfq.tar.gz
 
