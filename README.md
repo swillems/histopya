@@ -77,7 +77,7 @@ bash run_cmd.sh -i install/test_lfq_parameters.json -a CAB
 
 ## Input data
 
-To create an ion-network, nothing more is needed than a single folder containing a csv per experiment with all its peak picked fragment ions. Herein, each ion needs to have the following  attributes:
+To create an ion-network, nothing more is needed than a single folder containing a csv per run of the experiment with all its peak picked fragment ions. Herein, each ion needs to have the following  attributes:
 
 1. m/z
 2. DT
